@@ -6,7 +6,7 @@
 import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Register } from 'claude-code'
 
-import type { Delivery, Entry, Receipt, Response, Sections, Snapshot, StepResult } from '../types'
+import type { Delivery, Entry, Phase, Receipt, Response, Sections, Snapshot, StepResult } from '../types'
 import {
   ID_RE,
   LIMITS,
@@ -17,6 +17,7 @@ import {
   deliveryText,
   dueDeliveries,
   findSecret,
+  isPending,
   makeItem,
   newId,
   parseAdd,
@@ -26,7 +27,7 @@ import {
 } from './core'
 import { type Strings, strings } from './i18n'
 import { type FsLike, InboxStore } from './store'
-import { type Actions, draftKey, renderPane } from './view'
+import { type Actions, draftKey, phaseKey, renderPane } from './view'
 
 const PANE = 'owner-inbox'
 const COMMAND = 'owner-inbox'
@@ -47,7 +48,7 @@ const sections = atom({ plugin: 'owner-inbox', key: 'sections' } as const, {
 const notice = atom({ plugin: 'owner-inbox', key: 'notice' } as const, null as string | null)
 
 const GUIDE = `# Owner inbox
-Anything you need from the owner goes into the owner inbox with ${TOOL_PREFIX}add: a question, a decision, an approval, something to look at, a task only they can do, or a test guide for them to run. Long autonomous work scrolls chat messages out of sight; the inbox keeps each item beside the chat until the owner handles it, and shows which session it came from. Add it the moment the need comes up, even while busy, and mention it in chat as usual. Adding returns at once and never waits for the owner: keep working on whatever does not depend on the answer. Put everything needed to answer into the item itself (context, your recommendation, links), since the owner may read it hours later. When the owner answers, a message from the owner-inbox plugin arrives in this session; ${TOOL_PREFIX}answers fetches answers on demand. Close items you have acted on or no longer need with ${TOOL_PREFIX}resolve. Never put secrets (keys, tokens, passwords) into the inbox.`
+Anything you need from the owner goes into the owner inbox with ${TOOL_PREFIX}add: a question, a decision, an approval, something to look at, a task only they can do, or a test guide for them to run. Long autonomous work scrolls chat messages out of sight; the inbox keeps each item beside the chat until the owner handles it, and shows which session it came from. Add it the moment the need comes up, even while busy, and mention it in chat as usual. Adding returns at once and never waits for the owner: keep working on whatever does not depend on the answer. Put everything needed to answer into the item itself (context, your recommendation, links), since the owner may read it hours later. The owner may also mark an item as in progress or put it off for later; a short message tells you, and the item stays open. When the owner answers, a message from the owner-inbox plugin arrives in this session; ${TOOL_PREFIX}answers fetches answers on demand. Close items you have acted on or no longer need with ${TOOL_PREFIX}resolve. Never put secrets (keys, tokens, passwords) into the inbox.`
 
 const STEP_SCHEMA = {
   anyOf: [
@@ -133,8 +134,8 @@ const TOOLS = [
       properties: {
         status: {
           type: 'string',
-          enum: ['open', 'answered', 'done', 'all'],
-          description: 'Default: open and answered.',
+          enum: ['open', 'progress', 'later', 'answered', 'done', 'all'],
+          description: 'Default: everything not done (open, progress, later, answered).',
         },
         scope: {
           type: 'string',
@@ -523,7 +524,7 @@ async function answer(
   const inbox = await store($)
   const item = inbox.item(id)
   const response = await inbox.readResponse(id)
-  if (item === undefined || statusOf(item, response) !== 'open') return
+  if (item === undefined || !isPending(statusOf(item, response))) return
   const now = await $.clock.now()
   const steps = patch.steps ?? response?.steps
   // A receipt names what it delivered by this time, so a changed answer must
@@ -556,7 +557,7 @@ async function saveSteps(
   const inbox = await store($)
   const item = inbox.item(id)
   const response = await inbox.readResponse(id)
-  if (item === undefined || statusOf(item, response) !== 'open') return
+  if (item === undefined || !isPending(statusOf(item, response))) return
   await inbox.writeResponse({
     ...(response ?? { v: 1, id, status: 'draft' }),
     steps: change({ ...(response?.steps ?? {}) }),
@@ -666,6 +667,37 @@ async function archiveItem($: $, id: string): Promise<void> {
   await refresh($)
 }
 
+/** Files an item as in progress or later with the drafted note, or back to active. */
+async function setPhase($: $, id: string, phase: Phase | null): Promise<void> {
+  const inbox = await store($)
+  const item = inbox.item(id)
+  const response = await inbox.readResponse(id)
+  if (item === undefined || !isPending(statusOf(item, response))) return
+  const note = trimmed(mem.drafts.get(phaseKey(id)))
+  if (!(await checked($, [note]))) return
+  const now = await $.clock.now()
+  const base: Response = response ?? { v: 1, id, status: 'draft', updatedAt: now }
+  const { phase: _phase, phaseNote: _note, ...rest } = base
+  // Like an answer, each move needs a time no receipt names yet.
+  const delivered = inbox.receipt(id)?.answeredAt ?? 0
+  await inbox.writeResponse(
+    phase === null
+      ? { ...rest, updatedAt: now }
+      : {
+          ...rest,
+          phase,
+          phaseAt: Math.max(now, delivered + 1),
+          ...(note === undefined ? {} : { phaseNote: note }),
+          updatedAt: now,
+        },
+  )
+  mem.drafts.delete(phaseKey(id))
+  await inbox.markSeen([id], now)
+  await say($, null)
+  await update($, selected, () => null)
+  await refresh($)
+}
+
 function actions($: $): Actions {
   return {
     select: id => void serial(() => selectItem($, id)),
@@ -681,6 +713,7 @@ function actions($: $): Actions {
     sendTest: id => void serial(() => sendTest($, id)),
     undo: id => void serial(() => undoAnswer($, id)),
     archive: id => void serial(() => archiveItem($, id)),
+    setPhase: (id, phase) => void serial(() => setPhase($, id, phase)),
   }
 }
 
@@ -955,8 +988,8 @@ export const register: Register = (on, options) => {
   on('ui.render', { component: 'AbovePrompt' }, async ($, e, next) => {
     if (e.viewport?.isFullscreen !== undefined) mem.docks.set(e.surface, e.viewport.isFullscreen)
     const { entries } = await read($, snapshot)
-    const { open, fresh } = counts(entries)
-    if (open === 0 || e.props.hasSurvey) return next(e)
+    const { open, fresh, progress } = counts(entries)
+    if (open + progress === 0 || e.props.hasSurvey) return next(e)
     const { Box, Button } = $.ui.resolve(e)
 
     return (
@@ -964,7 +997,7 @@ export const register: Register = (on, options) => {
         <Button
           key="open-inbox"
           plain
-          label={config.s.band(open, fresh)}
+          label={config.s.band(open, fresh, progress)}
           onPress={() => void openPane($, open)}
         />
       </Box>

@@ -143,7 +143,7 @@ describe('a session adds an item', () => {
 
     for (const surface of ['terminal', 'desktop', 'vscode', 'mobile'] as const) {
       const ui = await $.ui.mount({ ...PANE, surface })
-      expect((await ui.find({ type: 'Text', text: /offen/ }))?.text).toBe('1 offen, davon 1 neu')
+      expect((await ui.find({ type: 'Text', text: /Aktiv/ }))?.text).toBe('Aktiv (1) · 1 neu')
       expect((await ui.find({ type: 'Button', text: /Ship it\?/ }))?.text).toMatch(/Frage: Ship it\?.*von lead/)
       await ui.unmount()
     }
@@ -184,7 +184,7 @@ describe('the owner answers', () => {
 
     await w.clock.advance(10_000)
     expect(w.prompts).toHaveLength(1)
-    expect((await ui.find({ type: 'Text', text: /offen/ }))?.text).toBe('Nichts offen.')
+    expect((await ui.find({ type: 'Text', text: /Aktiv/ }))?.text).toBe('Aktiv: nichts offen')
     await ui.unmount()
   })
 
@@ -283,7 +283,7 @@ describe('the owner answers', () => {
     await w.clock.advance(3000)
     expect(w.prompts[0]).toMatch('Rejected.')
 
-    await ui.press({ key: 'section-answered' })
+    await ui.press({ key: 'section-done' })
     await ui.press({ key: `item-${id}` })
     await ui.press({ key: `undo-${id}` })
     expect(w.fs.json(`${DIR}/responses/${id}.json`)).toMatchObject({ status: 'draft' })
@@ -313,7 +313,7 @@ describe('when the host does not take the wake-up message', () => {
     expect(w.logs).toEqual([
       "owner-inbox: could not wake this session with the owner's answer (the host takes no plugin prompts); it goes along with the next tool result or prompt.",
     ])
-    await ui.press({ key: 'section-answered' })
+    await ui.press({ key: 'section-done' })
     await ui.press({ key: `item-${id}` })
     expect((await ui.find({ type: 'Text', text: /angekommen/ }))?.text).toBe('Bei der Sitzung noch nicht angekommen.')
 
@@ -449,7 +449,7 @@ describe('what the review found', () => {
     await ui.press({ key: `yes-${asked}` })
     await w.clock.advance(3000)
     expect(w.prompts.at(-1)).toMatch('Approved.')
-    await ui.press({ key: 'section-answered' })
+    await ui.press({ key: 'section-done' })
     await ui.press({ key: `item-${asked}` })
     await ui.press({ key: `undo-${asked}` })
     await w.clock.advance(3000)
@@ -470,6 +470,63 @@ describe('what the review found', () => {
     expect(w.fs.json(`${DIR}/responses/${id}.json`)).toMatchObject({
       steps: { '1': { result: 'pass' }, '2': { result: 'fail' } },
     })
+    await ui.unmount()
+  })
+})
+
+describe('in progress, later, done', () => {
+  test('the owner files an item, the session hears each move with the note', DE, async ($, on) => {
+    const w = world(on)
+    await $.session.start({ cwd: '/', surface: 'desktop', isInteractive: true })
+    const id = idIn(out(await $.tool.call(add({ type: 'task', title: 'Test the new voice' }))))
+    const ui = await $.ui.mount({ ...PANE, surface: 'desktop' })
+    await ui.press({ key: `item-${id}` })
+    await ui.input({ key: `phase-note-${id}`, text: 'starte gleich', kind: 'change' })
+    await ui.press({ key: `progress-${id}` })
+    await w.clock.advance(3000)
+    expect(w.prompts.at(-1)).toMatch(`(id ${id})\nThe owner is working on this now.`)
+    expect(w.prompts.at(-1)).toMatch('Note: "starte gleich"')
+    expect(w.prompts.at(-1)).toMatch('No answer yet: keep these items open.')
+    expect((await ui.find({ type: 'Text', text: /Aktiv/ }))?.text).toBe('Aktiv: nichts offen')
+    expect((await ui.find({ key: 'section-progress' }))?.text).toBe('▾ In Arbeit (1)')
+    expect((await ui.find({ type: 'Button', text: /Test the new voice/ }))?.text).toMatch(/^▶ Aufgabe/)
+
+    const band = await $.ui.mount({
+      plugin: 'owner-inbox',
+      component: 'AbovePrompt',
+      props: { hasSurvey: false, isCollapsed: false, isWorking: false },
+      surface: 'desktop',
+    } as never)
+    const bandUi = band as { find: (q: object) => Promise<{ text: string } | undefined>; unmount: () => Promise<void> }
+    expect((await bandUi.find({ key: 'open-inbox' }))?.text).toBe('Für dich: 1 in Arbeit')
+    await bandUi.unmount()
+
+    await ui.press({ key: `item-${id}` })
+    expect((await ui.find({ type: 'Text', text: /In Arbeit seit/ }))?.text).toMatch(/^In Arbeit seit \d\d:\d\d\.$/)
+    expect((await ui.find({ type: 'Text', text: /Deine Notiz/ }))?.text).toBe('Deine Notiz: starte gleich')
+    await ui.input({ key: `phase-note-${id}`, text: 'erst morgen', kind: 'change' })
+    await ui.press({ key: `later-${id}` })
+    await w.clock.advance(3000)
+    expect(w.prompts.at(-1)).toMatch('The owner put this off for later.')
+    expect(w.prompts.at(-1)).toMatch('Note: "erst morgen"')
+    expect((await ui.find({ key: 'section-later' }))?.text).toBe('▾ Später (1)')
+    expect(JSON.parse(out(await $.tool.call({ tool: 'mcp__owner-inbox__list' })) ?? '[]')).toMatchObject([
+      { id, status: 'later', note: 'erst morgen' },
+    ])
+
+    // Back to active: no message; answering from there goes back as usual.
+    await ui.press({ key: `item-${id}` })
+    await ui.press({ key: `active-${id}` })
+    await w.clock.advance(3000)
+    expect(w.prompts).toHaveLength(2)
+    expect((await ui.find({ type: 'Text', text: /Aktiv/ }))?.text).toBe('Aktiv (1)')
+    await ui.press({ key: `item-${id}` })
+    await ui.press({ key: `later-${id}` })
+    await ui.press({ key: `item-${id}` })
+    await ui.press({ key: `yes-${id}` })
+    await w.clock.advance(3000)
+    expect(w.prompts.at(-1)).toMatch(`(id ${id})\nDone.`)
+    expect((await ui.find({ key: 'section-done' }))?.text).toBe('▸ Erledigt (1)')
     await ui.unmount()
   })
 })
@@ -580,7 +637,7 @@ describe('the rest of the wiring', () => {
     await $.session.start({ cwd: '/', surface: 'desktop', isInteractive: true })
     await $.tool.call(add({ type: 'review', title: 'Read the README' }))
     const ui = await $.ui.mount({ ...PANE, surface: 'desktop' })
-    expect((await ui.find({ type: 'Text', text: /open/ }))?.text).toBe('1 open, 1 new')
+    expect((await ui.find({ type: 'Text', text: /Active/ }))?.text).toBe('Active (1) · 1 new')
     expect((await ui.find({ type: 'Button', text: /README/ }))?.text).toMatch(/^● Look at: Read the README/)
     await ui.unmount()
   })

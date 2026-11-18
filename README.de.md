@@ -6,7 +6,12 @@ English: [README.md](README.md).
 
 ## Was du siehst
 
-- **Das Fenster „Für dich“** rechts neben dem Chat. Darin steht alles, was offen ist, nach Projekt sortiert. Bei jedem Eintrag steht, welche Sitzung ihn eingetragen hat und wann. Neue Einträge haben einen vollen Punkt (●).
+- **Das Fenster „Für dich“** rechts neben dem Chat, in vier Bereichen:
+  - **Aktiv:** was auf dich wartet, nach Projekt sortiert. Neue Einträge haben einen vollen Punkt (●).
+  - **In Arbeit (▶):** woran du gerade sitzt.
+  - **Später (⏸):** was du bewusst verschoben hast.
+  - **Erledigt (✓):** was du beantwortet hast oder was die Sitzung abgeschlossen hat.
+  Bei jedem Eintrag steht, welche Sitzung ihn eingetragen hat und wann.
 - **Die Zeile über dem Eingabefeld**, zum Beispiel „Für dich: 2 offen, 1 neu“. Ein Klick darauf öffnet das Fenster.
 - Optional eine **Benachrichtigung**, wenn etwas Neues kommt.
 
@@ -22,7 +27,9 @@ English: [README.md](README.md).
    - **Test:** Markiere jeden Schritt mit „Wie erwartet“ oder „Nicht wie erwartet“. Zu jedem Schritt kannst du eine Notiz schreiben (Enter speichert, „✓ Notiz gespeichert“ zeigt es an). Am Ende „Ergebnis senden“. Fehlt bei einem Schritt noch das Ergebnis, fragt die Inbox einmal nach.
 4. Fertig. Der Eintrag wandert zu „Beantwortet“, und die Sitzung bekommt deine Antwort von selbst.
 
-Vertippt? Unter „Beantwortet“ kannst du eine Antwort zurücknehmen und neu geben, solange die Sitzung den Eintrag noch nicht geschlossen hat. Einträge, die dich nicht mehr betreffen, kannst du mit „Ausblenden“ wegräumen.
+Noch nicht so weit? Unten im Eintrag steht „Stand“: Schreib auf Wunsch eine Notiz an die Sitzung und tippe auf „▶ In Arbeit“ oder „⏸ Später“. Die Sitzung erfährt es mit deiner Notiz, und der Eintrag wandert in den passenden Bereich. „↺ Wieder aktiv“ holt ihn zurück. Beantworten kannst du ihn aus jedem Bereich.
+
+Vertippt? Unter „Erledigt“ kannst du eine Antwort zurücknehmen und neu geben, solange die Sitzung den Eintrag noch nicht geschlossen hat. Einträge, die dich nicht mehr betreffen, kannst du mit „Ausblenden“ wegräumen.
 
 ## Gut zu wissen
 

@@ -10,8 +10,9 @@ Kurzanleitung auf Deutsch: [README.de.md](README.de.md).
 
 - **One inbox for all sessions.** Every Claude Code session on your machine writes to the same inbox, so items from parallel sessions show up in one list, grouped by project, each with the session it came from.
 - **Stays visible.** Open items wait in the *For you* pane beside the chat and in a line above the prompt (`For you: 2 open, 1 new`) until you deal with them, however far the chat has scrolled.
+- **Sorted the way you work.** The pane has four parts: *Active*, *In progress*, *Later* and *Done*. Mark an item as in progress or put it off for later, with a note to the session if you like; the session is told, and the item stays open until you answer.
 - **Cheap for sessions.** Adding an item is one tool call that returns at once. The session keeps working; it is never blocked waiting for you.
-- **Answers come back by themselves.** When you answer, the session that asked receives your answer as a message within a few seconds. If it is busy, the answer arrives right after its current turn. If the host does not let the plugin wake the session, the answer goes along with the session's next tool result or your next prompt. The session also hears when you put its item away unanswered or take an answer back.
+- **Answers come back by themselves.** When you answer, the session that asked receives your answer as a message within a few seconds. If it is busy, the answer arrives right after its current turn. If the host does not let the plugin wake the session, the answer goes along with the session's next tool result or your next prompt. The session also hears when you start on its item, put it off for later, put it away unanswered or take an answer back.
 - **Six kinds of items:**
 
   | Type | You answer with |
@@ -58,7 +59,7 @@ The plugin gives every session four tools and adds a short paragraph to the syst
 | --- | --- |
 | `mcp__owner-inbox__add` | Adds an item (`type`, `title`, optional `body` in Markdown, `options`, `recommended`, `allow_text`, `steps`, `project`, `from`). Returns the item's id at once. |
 | `mcp__owner-inbox__answers` | Returns your answers to this session's items that are not closed yet. |
-| `mcp__owner-inbox__list` | Lists items with status (`open`, `answered`, `done`) and answers. |
+| `mcp__owner-inbox__list` | Lists items with status (`open`, `progress`, `later`, `answered`, `done`), answers and your notes. |
 | `mcp__owner-inbox__resolve` | Closes items once acted on (`done`) or no longer needed (`withdrawn`). |
 
 A test guide, for example:

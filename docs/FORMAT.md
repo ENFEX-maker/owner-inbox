@@ -58,6 +58,7 @@ All times are milliseconds since the Unix epoch. Every file carries `"v": 1`.
 - `text`: an answer in words, or a note to the choice.
 - `archived`, `archivedAt`: the owner put the item away (answered or not); it counts as done.
 - `retractedAt`: the owner took an answer back; the response is a `draft` again until the next answer.
+- `phase`, `phaseAt`, `phaseNote`: the owner filed the item before answering it, as `progress` (working on it) or `later` (put off), with an optional note to the session. Absent while the item is simply open. An answer drops them.
 - `answeredAt` names the answer; a changed answer gets a later one than anything delivered before.
 
 ## receipts/&lt;id&gt;.json
@@ -66,7 +67,7 @@ All times are milliseconds since the Unix epoch. Every file carries `"v": 1`.
 { "v": 1, "id": "20261118-101500-a1b2c3", "deliveredAt": 1795000401000, "answeredAt": 1795000400000 }
 ```
 
-Written once news of the item reached the session that added it. `answeredAt` names what it got: the answer's `answeredAt`, or the `archivedAt` of an item put away unanswered, or the `retractedAt` of an answer taken back after it was delivered. News whose time no receipt names is due for delivery. Only the session that added the item writes its receipt.
+Written once news of the item reached the session that added it. `answeredAt` names what it got: the answer's `answeredAt`, the `phaseAt` of an item marked in progress or later, the `archivedAt` of an item put away unanswered, or the `retractedAt` of an answer taken back after it was delivered. News whose time no receipt names is due for delivery. Only the session that added the item writes its receipt.
 
 ## owner/seen.json
 
@@ -78,4 +79,4 @@ The items the owner opened, by id, with the time. Open items not listed here cou
 
 ## Status
 
-An item is **done** when it is closed or its response is archived, **answered** when its response has `status: "answered"`, and **open** otherwise.
+An item is **done** when it is closed or its response is archived, **answered** when its response has `status: "answered"`, **progress** or **later** when its draft response has that `phase`, and **open** otherwise.

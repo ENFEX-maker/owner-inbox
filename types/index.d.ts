@@ -53,6 +53,11 @@ export type Response = {
   archivedAt?: number
   /** The owner took an answer back; set while the response is a draft again. */
   retractedAt?: number
+  /** Where the owner filed an item not answered yet: being worked on, or put off. */
+  phase?: Phase
+  phaseAt?: number
+  /** The owner's note to the session about the phase. */
+  phaseNote?: string
   updatedAt: number
   answeredAt?: number
 }
@@ -64,12 +69,19 @@ export type Response = {
  */
 export type Receipt = { v: 1; id: string; deliveredAt: number; answeredAt: number }
 
+/** Where the owner filed an item before answering it. */
+export type Phase = 'progress' | 'later'
+
 /** What a session is told about one of its items. */
-export type DeliveryKind = 'answer' | 'dismissed' | 'retracted'
+export type DeliveryKind = 'answer' | 'dismissed' | 'retracted' | 'progress' | 'later'
 
 export type Delivery = { entry: Entry; kind: DeliveryKind; version: number }
 
-export type Status = 'open' | 'answered' | 'done'
+/**
+ * open: waits for the owner; progress: the owner is on it; later: put off;
+ * answered: the owner answered, the session has not closed it; done.
+ */
+export type Status = 'open' | 'progress' | 'later' | 'answered' | 'done'
 
 /** An item with everything known about it, as the pane draws it. */
 export type Entry = {
@@ -85,7 +97,7 @@ export type Entry = {
 export type Snapshot = { entries: Entry[] }
 
 /** Which collapsible parts of the pane are expanded. */
-export type Sections = { answered: boolean; done: boolean }
+export type Sections = { progress?: boolean; later?: boolean; done?: boolean }
 
 declare module 'claude-code' {
   interface PluginState {

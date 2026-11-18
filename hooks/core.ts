@@ -311,9 +311,11 @@ export function isResponse(x: unknown, id?: string): x is Response {
   if (x.status !== 'draft' && x.status !== 'answered') return false
   if (x.choice !== undefined && !isString(x.choice)) return false
   if (x.text !== undefined && !isString(x.text)) return false
-  for (const time of [x.answeredAt, x.archivedAt, x.retractedAt]) {
+  for (const time of [x.answeredAt, x.archivedAt, x.retractedAt, x.phaseAt]) {
     if (time !== undefined && !isNumber(time)) return false
   }
+  if (x.phase !== undefined && x.phase !== 'progress' && x.phase !== 'later') return false
+  if (x.phaseNote !== undefined && !isString(x.phaseNote)) return false
   if (x.archived !== undefined && typeof x.archived !== 'boolean') return false
   if (x.steps !== undefined) {
     if (!isRecord(x.steps)) return false
@@ -338,8 +340,11 @@ export function statusOf(item: Item, response: Response | undefined): Status {
   if (item.closed !== undefined || response?.archived === true) return 'done'
   if (response?.status === 'answered') return 'answered'
 
-  return 'open'
+  return response?.phase ?? 'open'
 }
+
+/** Whether the owner still has to act on it: open, in progress or put off. */
+export const isPending = (status: Status) => status === 'open' || status === 'progress' || status === 'later'
 
 /** When the answer standing now was given; a receipt names it. */
 export function answeredAtOf(response: Response): number {
@@ -389,16 +394,22 @@ export function groupByProject(entries: readonly Entry[]): Group[] {
     .sort((a, b) => (b.entries[0]?.item.createdAt ?? 0) - (a.entries[0]?.item.createdAt ?? 0))
 }
 
-export function counts(entries: readonly Entry[]): { open: number; fresh: number } {
-  let open = 0
-  let fresh = 0
+export type Counts = { open: number; fresh: number; progress: number; later: number }
+
+export function counts(entries: readonly Entry[]): Counts {
+  const tally: Counts = { open: 0, fresh: 0, progress: 0, later: 0 }
   for (const entry of entries) {
-    if (entry.status !== 'open') continue
-    open += 1
-    if (entry.isNew) fresh += 1
+    if (entry.status === 'open') {
+      tally.open += 1
+      if (entry.isNew) tally.fresh += 1
+    } else if (entry.status === 'progress') {
+      tally.progress += 1
+    } else if (entry.status === 'later') {
+      tally.later += 1
+    }
   }
 
-  return { open, fresh }
+  return tally
 }
 
 /**
@@ -412,14 +423,22 @@ export function deliveryOf(entry: Entry, receipt: Receipt | undefined): Delivery
   let delivery: Delivery | undefined
   if (response.status === 'answered') {
     delivery = { entry, kind: 'answer', version: answeredAtOf(response) }
-  } else if (response.archived === true) {
-    delivery = { entry, kind: 'dismissed', version: response.archivedAt ?? response.updatedAt }
-  } else if (
-    response.retractedAt !== undefined &&
-    receipt !== undefined &&
-    receipt.answeredAt < response.retractedAt
-  ) {
-    delivery = { entry, kind: 'retracted', version: response.retractedAt }
+  } else {
+    // Of the owner's moves since the last answer, the latest is the news.
+    const moves: Delivery[] = []
+    if (response.archived === true) {
+      moves.push({ entry, kind: 'dismissed', version: response.archivedAt ?? response.updatedAt })
+    } else if (response.phase !== undefined && response.phaseAt !== undefined) {
+      moves.push({ entry, kind: response.phase, version: response.phaseAt })
+    }
+    if (
+      response.retractedAt !== undefined &&
+      receipt !== undefined &&
+      receipt.answeredAt < response.retractedAt
+    ) {
+      moves.push({ entry, kind: 'retracted', version: response.retractedAt })
+    }
+    delivery = moves.sort((a, b) => b.version - a.version)[0]
   }
 
   return delivery === undefined || receipt?.answeredAt === delivery.version ? undefined : delivery
@@ -508,19 +527,28 @@ const NEWS: Record<Exclude<Delivery['kind'], 'answer'>, string> = {
   dismissed:
     'The owner put this item away without answering. Do not wait for an answer; add a new item if you still need one.',
   retracted: 'The owner took back their earlier answer. Do not act on it; a new answer may follow.',
+  progress: 'The owner is working on this now. Their answer follows when they are done.',
+  later:
+    'The owner put this off for later. Keep the item open and work on what does not depend on it; the answer will come later.',
+}
+
+function news(delivery: Delivery): string {
+  const { entry, kind } = delivery
+  if (kind === 'answer') {
+    return entry.response === undefined ? 'No answer given.' : describeAnswer(entry.item, entry.response)
+  }
+  const note = entry.response?.phaseNote
+  const withNote = (kind === 'progress' || kind === 'later') && note !== undefined
+
+  return withNote ? `${NEWS[kind]} Note: ${quote(note)}` : NEWS[kind]
 }
 
 /** The message that brings the owner's answers to the session that asked. */
 export function deliveryText(deliveries: readonly Delivery[]): string {
-  const parts = deliveries.map(({ entry: { item, response }, kind }) => {
-    const what =
-      kind !== 'answer'
-        ? NEWS[kind]
-        : response === undefined
-          ? 'No answer given.'
-          : describeAnswer(item, response)
+  const parts = deliveries.map(delivery => {
+    const { item } = delivery.entry
 
-    return `[${item.type}] ${quote(item.title)} (id ${item.id})\n${what}`
+    return `[${item.type}] ${quote(item.title)} (id ${item.id})\n${news(delivery)}`
   })
   const onlyAnswers = deliveries.every(delivery => delivery.kind === 'answer')
   const heading = !onlyAnswers
@@ -529,11 +557,12 @@ export function deliveryText(deliveries: readonly Delivery[]): string {
       ? 'The owner answered an item in the owner inbox:'
       : `The owner answered ${deliveries.length} items in the owner inbox:`
 
-  return [
-    heading,
-    ...parts,
-    `Act on the answers. Once an item is handled, close it with ${TOOL_PREFIX}resolve.`,
-  ].join('\n\n')
+  const onlyPhases = deliveries.every(delivery => delivery.kind === 'progress' || delivery.kind === 'later')
+  const footer = onlyPhases
+    ? 'No answer yet: keep these items open.'
+    : `Act on the answers. Once an item is handled, close it with ${TOOL_PREFIX}resolve.`
+
+  return [heading, ...parts, footer].join('\n\n')
 }
 
 /** One entry as the list and answers tools report it. */
@@ -549,6 +578,9 @@ export function toolView(entry: Entry): Record<string, unknown> {
     status,
     created: new Date(item.createdAt).toISOString(),
     ...(response?.status === 'answered' ? { answer: describeAnswer(item, response) } : {}),
+    ...((status === 'progress' || status === 'later') && response?.phaseNote !== undefined
+      ? { note: response.phaseNote }
+      : {}),
     ...(item.closed === undefined ? {} : { closed: item.closed.reason }),
   }
 }

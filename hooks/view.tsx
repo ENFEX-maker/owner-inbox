@@ -1,8 +1,8 @@
 // The pane beside the chat: the list of what waits for the owner, grouped by
 // project, and one item opened with the buttons that answer it. It draws from
 // a model and calls actions; it reads and writes nothing itself.
-import type { Entry, Item, Response, Sections, StepResult } from '../types'
-import { counts, groupByProject } from './core'
+import type { Entry, Item, Phase, Response, Sections, StepResult } from '../types'
+import { counts, groupByProject, isPending } from './core'
 import { formatTime, type Strings } from './i18n'
 
 /** The elements a surface's table holds that the pane uses. */
@@ -22,6 +22,8 @@ export type Actions = {
   sendTest: (id: string) => void
   undo: (id: string) => void
   archive: (id: string) => void
+  /** Files an item as being worked on or put off, or (null) back to active, with the drafted note. */
+  setPhase: (id: string, phase: Phase | null) => void
 }
 
 export type PaneModel = {
@@ -37,6 +39,13 @@ export type PaneModel = {
 /** The key a draft is kept under: the item, or one step of a test. */
 export const draftKey = (id: string, stepId?: string) =>
   stepId === undefined ? id : `${id}:${stepId}`
+
+/** The key the note to the session about a phase is drafted under. */
+export const phaseKey = (id: string) => `${id}:phase`
+
+/** Whether a section is expanded: in progress and later are, unless closed. */
+const isOpen = (sections: Sections, key: keyof Sections) =>
+  key === 'done' ? sections.done === true : sections[key] !== false
 
 const DONE_SHOWN = 20
 
@@ -61,7 +70,16 @@ function meta(entry: Entry, now: number, s: Strings): string {
 function row(el: Elements, entry: Entry, model: PaneModel, a: Actions, s: Strings) {
   const { Button, Text } = el
   const { item } = entry
-  const mark = entry.status === 'open' ? (entry.isNew ? '● ' : '○ ') : '✓ '
+  const mark =
+    entry.status === 'open'
+      ? entry.isNew
+        ? '● '
+        : '○ '
+      : entry.status === 'progress'
+        ? '▶ '
+        : entry.status === 'later'
+          ? '⏸ '
+          : '✓ '
 
   return (
     <Button key={`item-${item.id}`} plain onPress={() => a.select(item.id)}>
@@ -75,18 +93,45 @@ function row(el: Elements, entry: Entry, model: PaneModel, a: Actions, s: String
   )
 }
 
+function section(
+  el: Elements,
+  key: keyof Sections,
+  title: string,
+  entries: readonly Entry[],
+  model: PaneModel,
+  a: Actions,
+  s: Strings,
+) {
+  const { Box, Button } = el
+  if (entries.length === 0) return null
+  const expanded = isOpen(model.sections, key)
+  const shown = key === 'done' ? entries.slice(0, DONE_SHOWN) : entries
+
+  return (
+    <Box key={key} flexDirection="column">
+      <Button key={`section-${key}`} plain onPress={() => a.toggle(key)}>
+        {expanded ? '▾ ' : '▸ '}
+        {title}
+      </Button>
+      {expanded && shown.map(one => row(el, one, model, a, s))}
+    </Box>
+  )
+}
+
 function list(el: Elements, model: PaneModel, a: Actions, s: Strings) {
-  const { Box, Text, Button } = el
+  const { Box, Text } = el
   const open = model.entries.filter(one => one.status === 'open')
-  const answered = model.entries.filter(one => one.status === 'answered')
-  const done = model.entries.filter(one => one.status === 'done')
+  const progress = model.entries.filter(one => one.status === 'progress')
+  const later = model.entries.filter(one => one.status === 'later')
+  // Answered is done from the owner's side: the session takes it from there.
+  const done = model.entries.filter(one => one.status === 'answered' || one.status === 'done')
   const { open: openCount, fresh } = counts(model.entries)
 
   return (
     <Box flexDirection="column" gap={1}>
       <Text bold>{s.header(openCount, fresh)}</Text>
       {model.notice !== null && <Text color="warning">{model.notice}</Text>}
-      {open.length === 0 && <Text dimColor>{s.empty}</Text>}
+      {open.length + progress.length + later.length === 0 && <Text dimColor>{s.empty}</Text>}
       {groupByProject(open).map(group => (
         <Box key={`project-${group.project}`} flexDirection="column">
           <Text bold dimColor>
@@ -95,25 +140,9 @@ function list(el: Elements, model: PaneModel, a: Actions, s: Strings) {
           {group.entries.map(one => row(el, one, model, a, s))}
         </Box>
       ))}
-      {answered.length > 0 && (
-        <Box key="answered" flexDirection="column">
-          <Button key="section-answered" plain onPress={() => a.toggle('answered')}>
-            {model.sections.answered ? '▾ ' : '▸ '}
-            {s.answeredSection(answered.length)}
-          </Button>
-          {model.sections.answered && answered.map(one => row(el, one, model, a, s))}
-        </Box>
-      )}
-      {done.length > 0 && (
-        <Box key="done" flexDirection="column">
-          <Button key="section-done" plain onPress={() => a.toggle('done')}>
-            {model.sections.done ? '▾ ' : '▸ '}
-            {s.doneSection(done.length)}
-          </Button>
-          {model.sections.done &&
-            done.slice(0, DONE_SHOWN).map(one => row(el, one, model, a, s))}
-        </Box>
-      )}
+      {section(el, 'progress', s.progressSection(progress.length), progress, model, a, s)}
+      {section(el, 'later', s.laterSection(later.length), later, model, a, s)}
+      {section(el, 'done', s.doneSection(done.length), done, model, a, s)}
     </Box>
   )
 }
@@ -130,13 +159,64 @@ function detail(el: Elements, entry: Entry, model: PaneModel, a: Actions, s: Str
       </Text>
       <Text bold>{item.title}</Text>
       {item.body !== undefined && <Markdown key={`body-${item.id}`} text={item.body} />}
-      {entry.status === 'open'
+      {isPending(entry.status) && phaseState(el, entry, model, s)}
+      {isPending(entry.status)
         ? controls(el, item, entry.response, model, a, s)
         : outcome(el, entry, a, s)}
       {model.notice !== null && <Text color="warning">{model.notice}</Text>}
-      {entry.status === 'open' && (
+      {isPending(entry.status) && phaseControls(el, entry, a, s)}
+      {isPending(entry.status) && (
         <Button key={`dismiss-${item.id}`} plain dimColor label={s.archive} onPress={() => a.archive(item.id)} />
       )}
+    </Box>
+  )
+}
+
+/** Where the owner filed the item, and the note they sent with it. */
+function phaseState(el: Elements, entry: Entry, model: PaneModel, s: Strings) {
+  const { Box, Text } = el
+  const response = entry.response
+  if (response?.phase === undefined || response.phaseAt === undefined) return null
+
+  return (
+    <Box key={`phase-${entry.item.id}`} flexDirection="column">
+      <Text dimColor>{s.phaseState(response.phase, formatTime(response.phaseAt, model.now, s))}</Text>
+      {response.phaseNote !== undefined && (
+        <Text dimColor>
+          {s.yourNote}: {response.phaseNote}
+        </Text>
+      )}
+    </Box>
+  )
+}
+
+/** Files the item as in progress, later, or active again, with a note to the session. */
+function phaseControls(el: Elements, entry: Entry, a: Actions, s: Strings) {
+  const { Box, Text, Button, Input } = el
+  const { item } = entry
+  const key = phaseKey(item.id)
+
+  return (
+    <Box key={`phase-controls-${item.id}`} flexDirection="column" gap={1}>
+      <Text bold>{s.phaseHeading}</Text>
+      <Input
+        key={`phase-note-${item.id}`}
+        label={s.phaseNote}
+        value={a.draftOf(key) ?? ''}
+        onInput={(text: string) => a.draft(key, text)}
+        onSubmit={(text: string) => a.draft(key, text)}
+      />
+      <Box flexDirection="row" gap={1}>
+        {entry.status !== 'progress' && (
+          <Button key={`progress-${item.id}`} label={s.toProgress} onPress={() => a.setPhase(item.id, 'progress')} />
+        )}
+        {entry.status !== 'later' && (
+          <Button key={`later-${item.id}`} label={s.toLater} onPress={() => a.setPhase(item.id, 'later')} />
+        )}
+        {entry.status !== 'open' && (
+          <Button key={`active-${item.id}`} label={s.toActive} onPress={() => a.setPhase(item.id, null)} />
+        )}
+      </Box>
     </Box>
   )
 }

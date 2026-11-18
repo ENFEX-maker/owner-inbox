@@ -7,13 +7,21 @@ export type Language = 'de' | 'en'
 
 export type Strings = {
   paneTitle: (open: number) => string
-  band: (open: number, fresh: number) => string
+  band: (open: number, fresh: number, progress: number) => string
   header: (open: number, fresh: number) => string
   empty: string
+  progressSection: (n: number) => string
+  laterSection: (n: number) => string
+  phaseHeading: string
+  phaseNote: string
+  toProgress: string
+  toLater: string
+  toActive: string
+  phaseState: (phase: 'progress' | 'later', time: string) => string
+  yourNote: string
   type: Record<ItemType, string>
   fresh: string
   back: string
-  answeredSection: (n: number) => string
   doneSection: (n: number) => string
   from: (label: string) => string
   recommended: string
@@ -54,13 +62,24 @@ export type Strings = {
 
 const de: Strings = {
   paneTitle: open => (open > 0 ? `Für dich (${open})` : 'Für dich'),
-  band: (open, fresh) =>
-    `Für dich: ${open} offen${fresh > 0 ? `, ${fresh} neu` : ''}`,
+  band: (open, fresh, progress) =>
+    `Für dich: ${[
+      ...(open > 0 ? [`${open} offen`] : []),
+      ...(fresh > 0 ? [`${fresh} neu`] : []),
+      ...(progress > 0 ? [`${progress} in Arbeit`] : []),
+    ].join(', ')}`,
   header: (open, fresh) =>
-    open === 0
-      ? 'Nichts offen.'
-      : `${open} offen${fresh > 0 ? `, davon ${fresh} neu` : ''}`,
+    open === 0 ? 'Aktiv: nichts offen' : `Aktiv (${open})${fresh > 0 ? ` · ${fresh} neu` : ''}`,
   empty: 'Gerade wartet nichts auf dich.',
+  progressSection: n => `In Arbeit (${n})`,
+  laterSection: n => `Später (${n})`,
+  phaseHeading: 'Stand',
+  phaseNote: 'Notiz an die Sitzung (optional)',
+  toProgress: '▶ In Arbeit',
+  toLater: '⏸ Später',
+  toActive: '↺ Wieder aktiv',
+  phaseState: (phase, time) => (phase === 'progress' ? `In Arbeit seit ${time}.` : `Auf später verschoben am ${time}.`),
+  yourNote: 'Deine Notiz',
   type: {
     question: 'Frage',
     decision: 'Entscheidung',
@@ -71,7 +90,6 @@ const de: Strings = {
   },
   fresh: 'neu',
   back: '← Zurück',
-  answeredSection: n => `Beantwortet (${n})`,
   doneSection: n => `Erledigt (${n})`,
   from: label => `von ${label}`,
   recommended: 'empfohlen',
@@ -116,10 +134,24 @@ const de: Strings = {
 
 const en: Strings = {
   paneTitle: open => (open > 0 ? `For you (${open})` : 'For you'),
-  band: (open, fresh) => `For you: ${open} open${fresh > 0 ? `, ${fresh} new` : ''}`,
+  band: (open, fresh, progress) =>
+    `For you: ${[
+      ...(open > 0 ? [`${open} open`] : []),
+      ...(fresh > 0 ? [`${fresh} new`] : []),
+      ...(progress > 0 ? [`${progress} in progress`] : []),
+    ].join(', ')}`,
   header: (open, fresh) =>
-    open === 0 ? 'Nothing open.' : `${open} open${fresh > 0 ? `, ${fresh} new` : ''}`,
+    open === 0 ? 'Active: nothing open' : `Active (${open})${fresh > 0 ? ` · ${fresh} new` : ''}`,
   empty: 'Nothing is waiting for you.',
+  progressSection: n => `In progress (${n})`,
+  laterSection: n => `Later (${n})`,
+  phaseHeading: 'Status',
+  phaseNote: 'Note to the session (optional)',
+  toProgress: '▶ In progress',
+  toLater: '⏸ Later',
+  toActive: '↺ Active again',
+  phaseState: (phase, time) => (phase === 'progress' ? `In progress since ${time}.` : `Put off for later on ${time}.`),
+  yourNote: 'Your note',
   type: {
     question: 'Question',
     decision: 'Decision',
@@ -130,7 +162,6 @@ const en: Strings = {
   },
   fresh: 'new',
   back: '← Back',
-  answeredSection: n => `Answered (${n})`,
   doneSection: n => `Done (${n})`,
   from: label => `from ${label}`,
   recommended: 'recommended',

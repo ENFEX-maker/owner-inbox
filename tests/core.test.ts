@@ -19,7 +19,7 @@ import {
   statusOf,
   toolView,
 } from '../hooks/core'
-import type { Item, Receipt, Response } from '../types'
+import type { Entry, Item, Receipt, Response } from '../types'
 
 const ID = '20261118-101500-abcdef'
 
@@ -227,6 +227,9 @@ describe('files from other writers', () => {
     expect(isResponse({ ...good, steps: { '1': { result: 'maybe' } } })).toBe(false)
     expect(isResponse({ ...good, steps: { '1': { note: 5 } } })).toBe(false)
     expect(isResponse({ ...good, steps: { '1': { result: 'fail', note: 'x' } } })).toBe(true)
+    expect(isResponse({ ...good, phase: 'someday' })).toBe(false)
+    expect(isResponse({ ...good, phase: 'later', phaseAt: 'now' })).toBe(false)
+    expect(isResponse({ ...good, phase: 'later', phaseAt: 5, phaseNote: 'x' })).toBe(true)
   })
 })
 
@@ -248,7 +251,7 @@ describe('status and delivery', () => {
     expect(entries.map(entry => entry.item.id)).toEqual([newer.id, older.id])
     expect(entries.map(entry => entry.isNew)).toEqual([false, true])
     expect(entries.map(entry => entry.delivered)).toEqual([true, false])
-    expect(counts(entries)).toEqual({ open: 1, fresh: 1 })
+    expect(counts(entries)).toEqual({ open: 1, fresh: 1, progress: 0, later: 0 })
     expect(buildEntries([older], new Map(), { [older.id]: 9 })[0]?.isNew).toBe(false)
   })
 
@@ -267,6 +270,32 @@ describe('status and delivery', () => {
     // A closed item is not.
     const closed = buildEntries([item({ closed: { at: 1, reason: 'done' } })], new Map([[ID, answered()]]), {})
     expect(dueDeliveries(closed, new Map(), mine)).toHaveLength(0)
+  })
+
+  test('the owner files an item as in progress or later, and the latest move is the news', () => {
+    const draft = (over: Partial<Response>) =>
+      answered({ status: 'draft', choice: undefined, answeredAt: undefined, ...over })
+    expect(statusOf(item(), draft({ phase: 'progress', phaseAt: 3000 }))).toBe('progress')
+    expect(statusOf(item(), draft({ phase: 'later', phaseAt: 3000 }))).toBe('later')
+    expect(statusOf(item(), answered({ phase: 'later', phaseAt: 3000 }))).toBe('answered')
+
+    const later = buildEntries([item()], new Map([[ID, draft({ phase: 'later', phaseAt: 3000, phaseNote: 'after lunch' })]]), {})
+    expect(counts(later)).toEqual({ open: 0, fresh: 0, progress: 0, later: 1 })
+    const due = dueDeliveries(later, new Map(), 'S1')
+    expect(due).toMatchObject([{ kind: 'later', version: 3000 }])
+    const text = deliveryText(due)
+    expect(text).toMatch(/^News from the owner inbox:/)
+    expect(text).toMatch('The owner put this off for later.')
+    expect(text).toMatch('Note: "after lunch"')
+    expect(text).toMatch(/No answer yet: keep these items open\.$/)
+    const heard: Receipt = { v: 1, id: ID, deliveredAt: 3001, answeredAt: 3000 }
+    expect(dueDeliveries(later, new Map([[ID, heard]]), 'S1')).toEqual([])
+
+    // A move after a taken-back answer: the newer one is told.
+    const got: Receipt = { v: 1, id: ID, deliveredAt: 2001, answeredAt: 2000 }
+    const both = buildEntries([item()], new Map([[ID, draft({ retractedAt: 2500, phase: 'progress', phaseAt: 2600 })]]), {})
+    expect(dueDeliveries(both, new Map([[ID, got]]), 'S1')).toMatchObject([{ kind: 'progress', version: 2600 }])
+    expect(toolView(later[0] as Entry)).toMatchObject({ status: 'later', note: 'after lunch' })
   })
 
   test('putting an item away unanswered, and taking an answer back, are news too', () => {
