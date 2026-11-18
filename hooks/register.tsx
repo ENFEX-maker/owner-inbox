@@ -192,6 +192,7 @@ type Config = {
   s: Strings
   autoOpen: boolean
   notify: boolean
+  push: boolean
   captureChat: boolean
   pollMs: number
   dataDir: string
@@ -212,6 +213,7 @@ function configOf(options: Readonly<Record<string, unknown>>): Config {
     s: strings(options.language, systemLocale()),
     autoOpen: options.autoOpen !== false,
     notify: options.notify !== false,
+    push: options.push !== false,
     captureChat: options.captureChat !== false,
     pollMs:
       Number.isFinite(pollSeconds) && pollSeconds >= 1 && pollSeconds <= 60 ? pollSeconds * 1000 : 3000,
@@ -244,6 +246,8 @@ type Memory = {
   confirmSend: string | null
   /** Whether the running turn put anything into the inbox itself. */
   addedInTurn: boolean
+  /** Whether the transcript was told that pushes are refused here. */
+  pushWarned: boolean
   drafts: Map<string, string>
   docks: Map<string, boolean>
   /** The owner's pane changes, one after the other. */
@@ -268,6 +272,7 @@ function freshMemory(): Memory {
     lastDrop: undefined,
     confirmSend: null,
     addedInTurn: false,
+    pushWarned: false,
     drafts: new Map(),
     docks: new Map(),
     writes: Promise.resolve(),
@@ -757,9 +762,51 @@ async function putItem($: $, input: AddInput, captured: boolean): Promise<Item> 
       .notify(`${config.s.type[item.type]}: ${item.title}`, { title: config.s.notifyTitle, key: item.id })
       .catch(() => undefined)
   }
+  if (config.push) void pushToPhone($, item)
   await refresh($).catch(() => undefined)
 
   return item
+}
+
+// ---- The phone ---------------------------------------------------------------
+//
+// The Claude app on a phone draws no mods in a Remote Control session, so the
+// pane is not there. Claude Code's own PushNotification tool reaches the phone
+// instead: it pushes while Remote Control is connected and stays quiet while
+// the owner is at the computer. A session without the tool sends nothing.
+
+const PUSH_TOOL = 'PushNotification'
+const PUSH_LIMIT = 200
+
+/** One line for the phone: what is new, from which project, and its title. */
+function pushText(item: Item): string {
+  const line = `${config.s.notifyTitle} · ${item.project} · ${config.s.type[item.type]}: ${item.title}`
+    .replace(/\s+/g, ' ')
+    .trim()
+
+  return line.length > PUSH_LIMIT ? `${line.slice(0, PUSH_LIMIT - 1)}…` : line
+}
+
+async function pushToPhone($: $, item: Item): Promise<void> {
+  try {
+    const ran = (await $.tool.call({ tool: PUSH_TOOL, message: pushText(item), status: 'proactive' } as never)) as {
+      deny?: string
+      text?: string
+    }
+    if (ran.deny !== undefined) {
+      $.ui.log(`push ${item.id} refused: ${ran.deny}`, { to: 'debug' })
+      if (!mem.pushWarned) {
+        mem.pushWarned = true
+        $.ui.log(`owner-inbox: the push to the phone was refused here (${ran.deny}).`)
+      }
+
+      return
+    }
+    $.ui.log(`push ${item.id}: ${ran.text ?? 'sent'}`, { to: 'debug' })
+  } catch (error) {
+    // No such tool in this session, or the call failed: the pane still has it.
+    $.ui.log(`push ${item.id} not sent: ${String(error)}`, { to: 'debug' })
+  }
 }
 
 async function addItem($: $, raw: Record<string, unknown>): Promise<string> {

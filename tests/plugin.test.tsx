@@ -42,6 +42,10 @@ type World = {
   clear: (sessionId: string) => void
   /** What draws the session: none for a script's `claude -p`. */
   surfaces: ('desktop' | 'mobile')[]
+  /** What reached Claude Code's PushNotification tool. */
+  pushes: string[]
+  /** Set to make the host refuse the push, as a permission rule may. */
+  pushDeny: string | undefined
 }
 
 /** Everything beneath the plugin: one session, a folder in memory, a clock. */
@@ -59,6 +63,8 @@ function world(on: On, sessionId = 'S1', fs = new MemFs()): World {
     drop: undefined,
     humanDrop: undefined,
     surfaces: ['desktop'],
+    pushes: [],
+    pushDeny: undefined,
     clear: next => {
       current = next
     },
@@ -105,8 +111,15 @@ function world(on: On, sessionId = 'S1', fs = new MemFs()): World {
 
     return { text: e.text }
   })
+  on('tool.call', { tool: 'PushNotification' } as never, ((_: unknown, e: { message: string }) => {
+    if (w.pushDeny !== undefined) return { deny: w.pushDeny }
+    w.pushes.push(e.message)
+
+    return { result: 'Notification sent.' }
+  }) as never)
   on('ui.log', (_, e) => {
-    w.logs.push(e.text)
+    // The debug log is not the transcript.
+    if (e.to !== 'debug') w.logs.push(e.text)
 
     return { value: undefined }
   })
@@ -761,6 +774,36 @@ describe('the rest of the wiring', () => {
     await mounted.press({ key: 'open-inbox' })
     expect(w.opened).toEqual(['Für dich (1)'])
     await mounted.unmount()
+  })
+
+  test('a new item goes to the phone as one line', DE, async ($, on) => {
+    const w = world(on)
+    await $.session.start({ cwd: '/', surface: 'desktop', isInteractive: true })
+    await $.tool.call(add({ type: 'question', title: 'Push   it\nnow?', project: 'JARVIS' }))
+    await $.tool.call(add({ type: 'task', title: 'x'.repeat(195) }))
+    // The push goes out beside the add, which does not wait for it.
+    await w.clock.advance(0)
+    expect(w.pushes[0]).toBe('Neu für dich · JARVIS · Frage: Push it now?')
+    expect(w.pushes[1]).toHaveLength(200)
+    expect(w.pushes[1]).toMatch(/^Neu für dich · demo · Aufgabe: x+…$/)
+  })
+
+  test('a refused push says so once and leaves the item in place', DE, async ($, on) => {
+    const w = world(on)
+    w.pushDeny = 'no rule allows it'
+    await $.session.start({ cwd: '/', surface: 'desktop', isInteractive: true })
+    const first = idIn(out(await $.tool.call(add({ type: 'task', title: 'One' }))))
+    await $.tool.call(add({ type: 'task', title: 'Two' }))
+    expect(w.fs.names(`${DIR}/items`)).toContain(`${first}.json`)
+    expect(w.pushes).toEqual([])
+    expect(w.logs.filter(line => line.includes('push to the phone was refused'))).toHaveLength(1)
+  })
+
+  test('no push when switched off', { options: { language: 'de', push: false } }, async ($, on) => {
+    const w = world(on)
+    await $.session.start({ cwd: '/', surface: 'desktop', isInteractive: true })
+    await $.tool.call(add({ type: 'task', title: 'Quiet' }))
+    expect(w.pushes).toEqual([])
   })
 
   test('English on request', { options: { language: 'en' } }, async ($, on) => {

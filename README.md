@@ -31,7 +31,7 @@ Kurzanleitung auf Deutsch: [README.de.md](README.de.md).
 ## Requirements
 
 - Claude Code with mods (function hooks). Tested with Claude Code 2.1.325 in the Claude desktop app's Code tab. Mods are an early-access Claude Code feature; their API may change between releases.
-- Tested in the desktop app, where the pane docks beside the chat. The terminal (its fullscreen layout docks panes) and the Claude mobile app's Mods sheet over Remote Control follow the same mod rules but are not tested yet; the mobile app draws no text fields yet, so there you answer with buttons only.
+- Tested in the desktop app, where the pane docks beside the chat. The terminal (its fullscreen layout docks panes) follows the same mod rules but is not tested yet. On the phone, see *Known limits*.
 
 ## Install
 
@@ -97,6 +97,7 @@ Set in the plugin's options (the config menu, or `pluginConfigs` in your Claude 
 | `language` | `auto` | `auto` follows the system language; `de`, `en`, `es`, `fr`, `it`, `ja`, `ko`, `nl`, `pl`, `pt` or `zh` fixes one. |
 | `dataDir` | *(empty)* | The inbox folder. Empty means `.owner-inbox` in your home folder. |
 | `notify` | `true` | A system notification when a session adds an item. |
+| `push` | `true` | Also send a new item to your phone through Claude Code's `PushNotification` tool: one line with project, type and title. It pushes only while Remote Control is connected and stays quiet while you are at the computer. |
 | `autoOpen` | `true` | Open the pane by itself where it docks beside the chat. |
 | `captureChat` | `true` | The safety net: take a question a session asked only in chat into the inbox. |
 | `pollSeconds` | `3` | How often each session looks for changes from other sessions (1 to 60). |
@@ -104,7 +105,7 @@ Set in the plugin's options (the config menu, or `pluginConfigs` in your Claude 
 ## Data and privacy
 
 - Everything lives in the inbox folder (default `~/.owner-inbox`): one file per item, per answer and per delivery receipt. Each file has one writer, so parallel sessions never overwrite each other. The format is described in [docs/FORMAT.md](docs/FORMAT.md), so other tools can read and write the inbox too.
-- The plugin makes no network calls and writes no logs. Notifications show the item's type and title.
+- The plugin makes no network calls of its own and writes no logs of its own; Claude Code's debug log gets one line per push, naming the item's id, not its text. Notifications show the item's type and title. With `push` on, a new item's project, type and title also go to Claude Code's `PushNotification` tool, which sends them to your phone while Remote Control is connected.
 - Texts that look like API keys, tokens, private keys or passwords are refused when a session adds them and held back when you type them as an answer. This is a guard, not a guarantee: never paste secrets.
 - Answers are plain files, so whoever can write the folder could write an answer in your place. The plugin denies Claude's own file tools (Write, Edit) any path in the folder and shell commands that name it, so a session cannot approve its own request. That is a best effort against mistakes, not a security boundary against other programs on your machine.
 - Items are never deleted by the plugin. You can put an item away (*Put away*), and sessions close items they are done with. To clear the inbox, delete files from the folder.
@@ -122,6 +123,7 @@ To add a language:
 ## Known limits
 
 - Mods are early access; a Claude Code update may need a matching update here.
+- The Claude app on a phone shows no mods in a Remote Control session (as of Claude Code 2.1.325): neither the pane nor the band is there. New items reach the phone as push notifications instead (`push`); you answer at the computer, or in the chat of the session you follow on the phone. A push goes out from the session that added the item, so it reaches the phone only where that session's Remote Control is connected.
 - If the plugin reloads (an update, a changed option) while a wake-up message waits behind a running turn, the session may get that answer twice.
 - Items are never deleted, and every session reads the whole folder when it starts. With a few items a day that stays small for a long time; archiving old items is not built yet.
 

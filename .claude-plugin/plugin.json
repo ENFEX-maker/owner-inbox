@@ -48,6 +48,12 @@
       "description": "Raise a system notification when a session adds an item.",
       "default": true
     },
+    "push": {
+      "type": "boolean",
+      "title": "Push to your phone",
+      "description": "Also send a new item's project, type and title to your phone through Claude Code's PushNotification tool. It pushes only while Remote Control is connected, and stays quiet while you are at the computer.",
+      "default": true
+    },
     "autoOpen": {
       "type": "boolean",
       "title": "Open the pane by itself",

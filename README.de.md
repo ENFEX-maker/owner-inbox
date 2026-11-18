@@ -14,6 +14,7 @@ English: [README.md](README.md).
   Bei jedem Eintrag steht, welche Sitzung ihn eingetragen hat und wann.
 - **Die Zeile über dem Eingabefeld**, zum Beispiel „Für dich: 2 offen, 1 neu“. Rechts am Rand steht farbig, was du verschoben hast, etwa „(⏸ 1 später)“. Ein Klick darauf öffnet das Fenster.
 - Optional eine **Benachrichtigung**, wenn etwas Neues kommt.
+- Eine **Push-Nachricht aufs Handy**, wenn eine Sitzung mit Remote Control etwas Neues einträgt und du gerade nicht am PC sitzt: eine Zeile mit Projekt, Art und Titel.
 
 ## So antwortest du
 
@@ -33,13 +34,13 @@ Vertippt? Unter „Erledigt“ kannst du eine Antwort zurücknehmen und neu gebe
 
 ## Gut zu wissen
 
-- Alles bleibt auf deinem Rechner, im Ordner `.owner-inbox` in deinem Benutzerordner. Nichts wird ins Internet geschickt.
+- Alles bleibt auf deinem Rechner, im Ordner `.owner-inbox` in deinem Benutzerordner. Einzige Ausnahme ist die Push-Nachricht aufs Handy mit Projekt, Art und Titel eines neuen Eintrags. Ausschalten geht in den Optionen (`push`).
 - Passwörter, Schlüssel und Zugangsdaten gehören nicht hinein. Sieht etwas danach aus, wird es nicht angenommen.
 - Antworten gibst nur du: Sitzungen dürfen den Ordner der Inbox nicht selbst beschreiben, damit sich keine Sitzung ihre eigene Freigabe ausstellen kann.
 - Nimmst du eine Antwort zurück oder blendest einen offenen Eintrag aus, erfährt die Sitzung das auch.
 - **Auffangnetz:** Stellt eine Sitzung dir am Ende ihrer Antwort eine Frage nur im Chat, ohne sie in die Inbox zu legen, übernimmt die Inbox die Frage selbst, markiert mit „aus dem Chat übernommen“. Antwortest du lieber direkt im Chat, schließt deine nächste Nachricht dort den Eintrag wieder. Ausschalten geht in den Optionen (`captureChat`).
 - Die Sprache richtet sich nach deinem System. Es gibt elf Sprachen, darunter Deutsch und Englisch. Fest einstellen geht in den Optionen der Erweiterung (`language`, zum Beispiel `de`).
-- Auf dem Handy (Claude-App mit Remote Control) erscheint das Fenster im Bereich „Mods“. Dort gibt es nur Knöpfe, noch keine Textfelder.
+- Auf dem Handy zeigt die Claude-App in einer Sitzung mit Remote Control keine Erweiterungen, also weder das Fenster noch die Zeile. Neue Einträge kommen dort als Push-Nachricht an. Antworten kannst du am PC oder im Chat der Sitzung, die du auf dem Handy offen hast.
 
 ## Einbauen
 
