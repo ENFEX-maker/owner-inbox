@@ -7,11 +7,11 @@ English: [README.md](README.md).
 ## Was du siehst
 
 - **Das Fenster „Für dich“** rechts neben dem Chat, in vier Bereichen:
-  - **Aktiv:** was auf dich wartet, nach Projekt sortiert. Neue Einträge haben einen vollen Punkt (●).
-  - **In Arbeit (▶):** woran du gerade sitzt.
-  - **Später (⏸):** was du bewusst verschoben hast.
-  - **Erledigt (✓):** was du beantwortet hast oder was die Sitzung abgeschlossen hat.
-  Bei jedem Eintrag steht, welche Sitzung ihn eingetragen hat und wann.
+  - **● Aktiv** (orange): was auf dich wartet, nach Projekt sortiert. Neue Einträge haben einen kräftigen Rahmen und „● neu“.
+  - **▶ In Arbeit** (blau): woran du gerade sitzt.
+  - **⏸ Später** (gelb): was du bewusst verschoben hast.
+  - **✓ Erledigt** (grün): was du beantwortet hast oder was die Sitzung abgeschlossen hat.
+  Jeder Eintrag ist eine Karte: oben ein Symbol für die Art (💬 Frage, 🧭 Entscheidung, 👍 Freigabe, 👀 Anschauen, 📌 Aufgabe, 🧪 Test), das Projekt und die Uhrzeit, darunter der Titel und welche Sitzung ihn eingetragen hat.
 - **Die Zeile über dem Eingabefeld**, zum Beispiel „Für dich: 2 offen, 1 neu“. Rechts am Rand steht farbig, was du verschoben hast, etwa „(⏸ 1 später)“. Ein Klick darauf öffnet das Fenster.
 - Optional eine **Benachrichtigung**, wenn etwas Neues kommt.
 - Eine **Push-Nachricht aufs Handy**, wenn eine Sitzung mit Remote Control etwas Neues einträgt und du gerade nicht am PC sitzt: eine Zeile mit Projekt, Art und Titel.

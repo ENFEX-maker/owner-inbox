@@ -162,7 +162,11 @@ describe('a session adds an item', () => {
     for (const surface of ['terminal', 'desktop', 'vscode', 'mobile'] as const) {
       const ui = await $.ui.mount({ ...PANE, surface })
       expect((await ui.find({ type: 'Text', text: /Aktiv/ }))?.text).toBe('Aktiv (1) · 1 neu')
-      expect((await ui.find({ type: 'Button', text: /Ship it\?/ }))?.text).toMatch(/Frage: Ship it\?.*von lead/)
+      // A card: icon, type and project above the title, who filed it below.
+      expect((await ui.find({ type: 'Button', text: /Ship it\?/ }))?.text).toBe('Ship it?')
+      expect((await ui.find({ type: 'Text', text: /Frage ·/ }))?.text).toBe('💬 Frage · demo')
+      expect((await ui.find({ type: 'Text', text: /von lead/ }))?.text).toBe('von lead')
+      expect((await ui.find({ type: 'Text', text: /^● neu$/ }))?.text).toBe('● neu')
       await ui.unmount()
     }
   })
@@ -432,7 +436,8 @@ describe('what the review found', () => {
     await w.clock.advance(3000)
     expect(w.toasts).toEqual(['Neu für dich: Rotate the backup disk'])
     const ui = await $.ui.mount({ ...PANE, surface: 'desktop' })
-    expect((await ui.find({ type: 'Button', text: /Rotate the backup disk/ }))?.text).toMatch(/Freigabe/)
+    expect((await ui.find({ type: 'Button', text: /Rotate the backup disk/ }))?.text).toBe('Rotate the backup disk')
+    expect((await ui.find({ type: 'Text', text: /Freigabe ·/ }))?.text).toMatch(/^👍 Freigabe · /)
     await ui.unmount()
   })
 
@@ -506,8 +511,9 @@ describe('in progress, later, done', () => {
     expect(w.prompts.at(-1)).toMatch('Note: "starte gleich"')
     expect(w.prompts.at(-1)).toMatch('No answer yet: keep these items open.')
     expect((await ui.find({ type: 'Text', text: /Aktiv/ }))?.text).toBe('Aktiv: nichts offen')
-    expect((await ui.find({ key: 'section-progress' }))?.text).toBe('▾ In Arbeit (1)')
-    expect((await ui.find({ type: 'Button', text: /Test the new voice/ }))?.text).toMatch(/^▶ Aufgabe/)
+    expect((await ui.find({ key: 'section-progress' }))?.text).toBe('▶ In Arbeit (1) ▾')
+    expect(await ui.find({ key: `card-${id}` })).toBeDefined()
+    expect(await ui.find({ type: 'Text', text: /^● neu$/ })).toBeUndefined()
 
     const band = await $.ui.mount({
       plugin: 'owner-inbox',
@@ -527,7 +533,7 @@ describe('in progress, later, done', () => {
     await w.clock.advance(3000)
     expect(w.prompts.at(-1)).toMatch('The owner put this off for later.')
     expect(w.prompts.at(-1)).toMatch('Note: "erst morgen"')
-    expect((await ui.find({ key: 'section-later' }))?.text).toBe('▾ Später (1)')
+    expect((await ui.find({ key: 'section-later' }))?.text).toBe('⏸ Später (1) ▾')
     const laterBand = (await $.ui.mount({
       plugin: 'owner-inbox',
       component: 'AbovePrompt',
@@ -553,7 +559,7 @@ describe('in progress, later, done', () => {
     await ui.press({ key: `yes-${id}` })
     await w.clock.advance(3000)
     expect(w.prompts.at(-1)).toMatch(`(id ${id})\nDone.`)
-    expect((await ui.find({ key: 'section-done' }))?.text).toBe('▸ Erledigt (1)')
+    expect((await ui.find({ key: 'section-done' }))?.text).toBe('✓ Erledigt (1) ▸')
     await ui.unmount()
   })
 })
@@ -592,7 +598,8 @@ describe('the safety net for questions asked in chat alone', () => {
     })
     expect(w.notes).toEqual(['Frage: Shall I push it to GitHub now?'])
     const ui = await $.ui.mount({ ...PANE, surface: 'desktop' })
-    expect((await ui.find({ type: 'Button', text: /push it/ }))?.text).toMatch(/aus dem Chat übernommen/)
+    expect((await ui.find({ type: 'Button', text: /push it/ }))?.text).toBe('Shall I push it to GitHub now?')
+    expect((await ui.find({ type: 'Text', text: /aus dem Chat/ }))?.text).toBe('aus dem Chat übernommen')
     await ui.unmount()
 
     w.fs.put(
@@ -698,7 +705,7 @@ describe('several sessions share one inbox', () => {
     expect(w.opened).toContain('Für dich (1)')
 
     const ui = await $.ui.mount({ ...PANE, surface: 'desktop' })
-    expect((await ui.find({ type: 'Text', text: 'robot' }))?.text).toBe('robot')
+    expect((await ui.find({ type: 'Text', text: /robot/ }))?.text).toBe('📌 Aufgabe · robot')
     await ui.press({ key: `item-${other}` })
     await ui.press({ key: `yes-${other}` })
     await w.clock.advance(3000)
@@ -806,13 +813,38 @@ describe('the rest of the wiring', () => {
     expect(w.pushes).toEqual([])
   })
 
+  test('the list and every kind of item draw on every surface', DE, async ($, on) => {
+    world(on)
+    await $.session.start({ cwd: '/', surface: 'desktop', isInteractive: true })
+    const ids = [
+      idIn(out(await $.tool.call(add({ type: 'question', title: 'Q?', options: ['a', 'b'], recommended: 'a' })))),
+      idIn(out(await $.tool.call(add({ type: 'approval', title: 'Push?' })))),
+      idIn(out(await $.tool.call(add({ type: 'test', title: 'T', steps: ['one', { text: 'two', expect: 'ok' }] })))),
+    ]
+    for (const surface of ['terminal', 'desktop', 'vscode', 'mobile'] as const) {
+      const ui = (await $.ui.mount({ ...PANE, surface } as never)) as {
+        drawn: () => Promise<unknown>
+        press: (q: object) => Promise<unknown>
+        unmount: () => Promise<void>
+      }
+      await ui.drawn()
+      for (const id of ids) {
+        await ui.press({ key: `item-${id}` })
+        await ui.drawn()
+        await ui.press({ key: 'back' })
+      }
+      await ui.unmount()
+    }
+  })
+
   test('English on request', { options: { language: 'en' } }, async ($, on) => {
     world(on)
     await $.session.start({ cwd: '/', surface: 'desktop', isInteractive: true })
     await $.tool.call(add({ type: 'review', title: 'Read the README' }))
     const ui = await $.ui.mount({ ...PANE, surface: 'desktop' })
     expect((await ui.find({ type: 'Text', text: /Active/ }))?.text).toBe('Active (1) · 1 new')
-    expect((await ui.find({ type: 'Button', text: /README/ }))?.text).toMatch(/^● Look at: Read the README/)
+    expect((await ui.find({ type: 'Button', text: /README/ }))?.text).toBe('Read the README')
+    expect((await ui.find({ type: 'Text', text: /Look at ·/ }))?.text).toBe('👀 Look at · demo')
     await ui.unmount()
   })
 })

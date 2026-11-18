@@ -1,7 +1,7 @@
 // The pane beside the chat: the list of what waits for the owner, grouped by
 // project, and one item opened with the buttons that answer it. It draws from
 // a model and calls actions; it reads and writes nothing itself.
-import type { Entry, Item, Phase, Response, Sections, StepResult } from '../types'
+import type { Entry, Item, ItemType, Phase, Response, Sections, StepResult } from '../types'
 import { counts, groupByProject, isPending } from './core'
 import { formatTime, type Strings } from './i18n'
 
@@ -49,6 +49,30 @@ const isOpen = (sections: Sections, key: keyof Sections) =>
 
 const DONE_SHOWN = 20
 
+// The look: each section has one symbol and one color, used for its heading,
+// its cards' borders and the item's own page; each type of item one icon.
+type Look = { icon: string; color: string }
+
+const LOOK: Record<'open' | keyof Sections, Look> = {
+  open: { icon: '●', color: 'claude' },
+  progress: { icon: '▶', color: 'suggestion' },
+  later: { icon: '⏸', color: 'warning' },
+  done: { icon: '✓', color: 'success' },
+}
+
+const TYPE_ICON: Record<ItemType, string> = {
+  question: '💬',
+  decision: '🧭',
+  approval: '👍',
+  review: '👀',
+  task: '📌',
+  test: '🧪',
+}
+
+function lookOf(status: Entry['status']): Look {
+  return status === 'open' || status === 'progress' || status === 'later' ? LOOK[status] : LOOK.done
+}
+
 export function renderPane(el: Elements, model: PaneModel, a: Actions, s: Strings) {
   const entry =
     model.selected === null
@@ -58,38 +82,94 @@ export function renderPane(el: Elements, model: PaneModel, a: Actions, s: String
   return entry === undefined ? list(el, model, a, s) : detail(el, entry, model, a, s)
 }
 
-function meta(entry: Entry, now: number, s: Strings): string {
-  const parts = [
+/** Who filed it and how, below the title: the session's name, taken from chat. */
+function origin(entry: Entry, s: Strings): string {
+  return [
     ...(entry.item.source.label === undefined ? [] : [s.from(entry.item.source.label)]),
     ...(entry.item.captured === true ? [s.captured] : []),
-    formatTime(entry.item.createdAt, now, s),
-  ]
-
-  return parts.join(' · ')
+  ].join(' · ')
 }
 
-function row(el: Elements, entry: Entry, model: PaneModel, a: Actions, s: Strings) {
-  const { Button, Text } = el
+/** The line above a title: icon, type and project. */
+function kind(item: Item, s: Strings): string {
+  return `${TYPE_ICON[item.type]} ${s.type[item.type]} · ${item.project}`
+}
+
+/** One item in the list: a card with its kind and age, the title, and who filed it. */
+function card(el: Elements, entry: Entry, model: PaneModel, a: Actions, s: Strings) {
+  const { Box, Button, Text } = el
   const { item } = entry
-  const mark =
-    entry.status === 'open'
-      ? entry.isNew
-        ? '● '
-        : '○ '
-      : entry.status === 'progress'
-        ? '▶ '
-        : entry.status === 'later'
-          ? '⏸ '
-          : '✓ '
+  const look = lookOf(entry.status)
+  const isFresh = entry.status === 'open' && entry.isNew
+  const isDone = entry.status === 'answered' || entry.status === 'done'
+  const from = origin(entry, s)
 
   return (
-    <Button key={`item-${item.id}`} plain onPress={() => a.select(item.id)}>
-      {mark}
-      {s.type[item.type]}: {item.title}{' '}
-      <Text dimColor>
-        {entry.isNew ? `${s.fresh} · ` : ''}
-        {meta(entry, model.now, s)}
+    <Box
+      key={`card-${item.id}`}
+      flexDirection="column"
+      gap="xs"
+      paddingX="md"
+      paddingY="sm"
+      borderStyle="round"
+      borderColor={look.color}
+      borderDimColor={!isFresh}
+    >
+      <Box flexDirection="row" justifyContent="space-between" gap="sm">
+        <Text size="footnote" dimColor>
+          {kind(item, s)}
+        </Text>
+        <Text size="footnote" dimColor>
+          {formatTime(item.createdAt, model.now, s)}
+        </Text>
+      </Box>
+      <Button key={`item-${item.id}`} plain onPress={() => a.select(item.id)}>
+        <Text weight="semibold" dimColor={isDone}>
+          {item.title}
+        </Text>
+      </Button>
+      {(isFresh || from !== '') && (
+        <Box flexDirection="row" gap="sm">
+          {isFresh && (
+            <Text size="footnote" color={look.color} weight="semibold">
+              {look.icon} {s.fresh}
+            </Text>
+          )}
+          {from !== '' && (
+            <Text size="footnote" dimColor>
+              {from}
+            </Text>
+          )}
+        </Box>
+      )}
+    </Box>
+  )
+}
+
+/** A heading in a section's color; a press folds the section where it folds. */
+function heading(el: Elements, key: 'open' | keyof Sections, title: string, model: PaneModel, a: Actions) {
+  const { Box, Button, Text } = el
+  const look = LOOK[key]
+  if (key === 'open') {
+    return (
+      <Box key="heading-open" flexDirection="row" gap="sm">
+        <Text size="heading" weight="bold" color={look.color}>
+          {look.icon}
+        </Text>
+        <Text size="heading" weight="bold" color={look.color}>
+          {title}
+        </Text>
+      </Box>
+    )
+  }
+  const expanded = isOpen(model.sections, key)
+
+  return (
+    <Button key={`section-${key}`} plain onPress={() => a.toggle(key)}>
+      <Text size="heading" weight="bold" color={look.color}>
+        {look.icon} {title}
       </Text>
+      <Text dimColor>{expanded ? ' ▾' : ' ▸'}</Text>
     </Button>
   )
 }
@@ -103,18 +183,15 @@ function section(
   a: Actions,
   s: Strings,
 ) {
-  const { Box, Button } = el
+  const { Box } = el
   if (entries.length === 0) return null
   const expanded = isOpen(model.sections, key)
   const shown = key === 'done' ? entries.slice(0, DONE_SHOWN) : entries
 
   return (
-    <Box key={key} flexDirection="column">
-      <Button key={`section-${key}`} plain onPress={() => a.toggle(key)}>
-        {expanded ? '▾ ' : '▸ '}
-        {title}
-      </Button>
-      {expanded && shown.map(one => row(el, one, model, a, s))}
+    <Box key={key} flexDirection="column" gap="md">
+      {heading(el, key, title, model, a)}
+      {expanded && shown.map(one => card(el, one, model, a, s))}
     </Box>
   )
 }
@@ -129,18 +206,15 @@ function list(el: Elements, model: PaneModel, a: Actions, s: Strings) {
   const { open: openCount, fresh } = counts(model.entries)
 
   return (
-    <Box flexDirection="column" gap={1}>
-      <Text bold>{s.header(openCount, fresh)}</Text>
+    <Box flexDirection="column" gap="xl" paddingX="sm" paddingY="md">
       {model.notice !== null && <Text color="warning">{model.notice}</Text>}
-      {open.length + progress.length + later.length === 0 && <Text dimColor>{s.empty}</Text>}
-      {groupByProject(open).map(group => (
-        <Box key={`project-${group.project}`} flexDirection="column">
-          <Text bold dimColor>
-            {group.project}
-          </Text>
-          {group.entries.map(one => row(el, one, model, a, s))}
-        </Box>
-      ))}
+      <Box key="open" flexDirection="column" gap="md">
+        {heading(el, 'open', s.header(openCount, fresh), model, a)}
+        {open.length + progress.length + later.length === 0 && <Text dimColor>{s.empty}</Text>}
+        {groupByProject(open)
+          .flatMap(group => group.entries)
+          .map(one => card(el, one, model, a, s))}
+      </Box>
       {section(el, 'progress', s.progressSection(progress.length), progress, model, a, s)}
       {section(el, 'later', s.laterSection(later.length), later, model, a, s)}
       {section(el, 'done', s.doneSection(done.length), done, model, a, s)}
@@ -151,22 +225,47 @@ function list(el: Elements, model: PaneModel, a: Actions, s: Strings) {
 function detail(el: Elements, entry: Entry, model: PaneModel, a: Actions, s: Strings) {
   const { Box, Text, Button, Markdown } = el
   const { item } = entry
+  const look = lookOf(entry.status)
+  const from = origin(entry, s)
+  const pending = isPending(entry.status)
 
   return (
-    <Box flexDirection="column" gap={1}>
+    <Box flexDirection="column" gap="xl" paddingX="sm" paddingY="md">
       <Button key="back" plain label={s.back} onPress={() => a.select(null)} />
-      <Text dimColor>
-        {s.type[item.type]} · {item.project} · {meta(entry, model.now, s)}
-      </Text>
-      <Text bold>{item.title}</Text>
+      <Box key={`head-${item.id}`} flexDirection="column" gap="sm">
+        <Text size="footnote" color={look.color}>
+          {look.icon} {kind(item, s)}
+        </Text>
+        <Text size="title" weight="bold">
+          {item.title}
+        </Text>
+        <Text size="footnote" dimColor>
+          {[from, formatTime(item.createdAt, model.now, s)].filter(part => part !== '').join(' · ')}
+        </Text>
+      </Box>
       {item.body !== undefined && <Markdown key={`body-${item.id}`} text={item.body} />}
-      {isPending(entry.status) && phaseState(el, entry, model, s)}
-      {isPending(entry.status)
-        ? controls(el, item, entry.response, model, a, s)
-        : outcome(el, entry, a, s)}
+      {pending && phaseState(el, entry, model, s)}
+      {pending ? (
+        <Box
+          key={`answer-box-${item.id}`}
+          flexDirection="column"
+          gap="md"
+          paddingX="md"
+          paddingY="md"
+          borderStyle="round"
+          borderColor={look.color}
+        >
+          <Text weight="bold" color={look.color}>
+            {s.yourAnswer}
+          </Text>
+          {controls(el, item, entry.response, model, a, s)}
+        </Box>
+      ) : (
+        outcome(el, entry, a, s)
+      )}
       {model.notice !== null && <Text color="warning">{model.notice}</Text>}
-      {isPending(entry.status) && phaseControls(el, entry, a, s)}
-      {isPending(entry.status) && (
+      {pending && phaseControls(el, entry, a, s)}
+      {pending && (
         <Button key={`dismiss-${item.id}`} plain dimColor label={s.archive} onPress={() => a.archive(item.id)} />
       )}
     </Box>
@@ -178,10 +277,14 @@ function phaseState(el: Elements, entry: Entry, model: PaneModel, s: Strings) {
   const { Box, Text } = el
   const response = entry.response
   if (response?.phase === undefined || response.phaseAt === undefined) return null
+  const look = LOOK[response.phase]
 
   return (
-    <Box key={`phase-${entry.item.id}`} flexDirection="column">
-      <Text dimColor>{s.phaseState(response.phase, formatTime(response.phaseAt, model.now, s))}</Text>
+    <Box key={`phase-${entry.item.id}`} flexDirection="column" gap="xs">
+      <Box flexDirection="row" gap="sm">
+        <Text color={look.color}>{look.icon}</Text>
+        <Text color={look.color}>{s.phaseState(response.phase, formatTime(response.phaseAt, model.now, s))}</Text>
+      </Box>
       {response.phaseNote !== undefined && (
         <Text dimColor>
           {s.yourNote}: {response.phaseNote}
@@ -198,8 +301,10 @@ function phaseControls(el: Elements, entry: Entry, a: Actions, s: Strings) {
   const key = phaseKey(item.id)
 
   return (
-    <Box key={`phase-controls-${item.id}`} flexDirection="column" gap={1}>
-      <Text bold>{s.phaseHeading}</Text>
+    <Box key={`phase-controls-${item.id}`} flexDirection="column" gap="md">
+      <Text weight="semibold" dimColor>
+        {s.phaseHeading}
+      </Text>
       <Input
         key={`phase-note-${item.id}`}
         label={s.phaseNote}
@@ -207,7 +312,7 @@ function phaseControls(el: Elements, entry: Entry, a: Actions, s: Strings) {
         onInput={(text: string) => a.draft(key, text)}
         onSubmit={(text: string) => a.draft(key, text)}
       />
-      <Box flexDirection="row" gap={1}>
+      <Box flexDirection="row" flexWrap="wrap" gap="sm">
         {entry.status !== 'progress' && (
           <Button key={`progress-${item.id}`} label={s.toProgress} onPress={() => a.setPhase(item.id, 'progress')} />
         )}
@@ -250,7 +355,7 @@ function controls(
     case 'question':
     case 'decision':
       return (
-        <Box key={`answer-${item.id}`} flexDirection="column" gap={1}>
+        <Box key={`answer-${item.id}`} flexDirection="column" gap="sm">
           {(item.options ?? []).map((option, index) => (
             <Button
               key={`option-${item.id}-${index}`}
@@ -284,9 +389,9 @@ function controls(
         item.type === 'approval' ? ['approved', 'rejected'] : ['done', 'declined']
 
       return (
-        <Box key={`answer-${item.id}`} flexDirection="column" gap={1}>
+        <Box key={`answer-${item.id}`} flexDirection="column" gap="md">
           {noteInput(el, item, a, s, s.note)}
-          <Box flexDirection="row" gap={1}>
+          <Box flexDirection="row" flexWrap="wrap" gap="sm">
             <Button
               key={`yes-${item.id}`}
               label={yes}
@@ -317,7 +422,7 @@ function testControls(
   const marked = steps.filter(step => results[step.id]?.result !== undefined).length
 
   return (
-    <Box key={`answer-${item.id}`} flexDirection="column" gap={1}>
+    <Box key={`answer-${item.id}`} flexDirection="column" gap="md">
       {steps.map(step => {
         const result = results[step.id]?.result
         const key = draftKey(item.id, step.id)
@@ -326,8 +431,20 @@ function testControls(
         const isSaved = saved !== undefined && (draft === undefined || draft.trim() === saved)
 
         return (
-          <Box key={`step-${item.id}-${step.id}`} flexDirection="column">
-            <Text bold>
+          <Box
+            key={`step-${item.id}-${step.id}`}
+            flexDirection="column"
+            gap="sm"
+            paddingX="md"
+            paddingY="sm"
+            borderStyle="round"
+            borderColor={result === 'pass' ? 'success' : result === 'fail' ? 'error' : 'subtle'}
+            borderDimColor={result === undefined}
+          >
+            <Text
+              weight="bold"
+              color={result === 'pass' ? 'success' : result === 'fail' ? 'error' : undefined}
+            >
               {result === 'pass' ? '✓ ' : result === 'fail' ? '✗ ' : '○ '}
               {step.id}.
             </Text>
@@ -337,7 +454,7 @@ function testControls(
                 {s.expected}: {step.expect}
               </Text>
             )}
-            <Box flexDirection="row" gap={1}>
+            <Box flexDirection="row" flexWrap="wrap" gap="sm">
               <Button
                 key={`pass-${item.id}-${step.id}`}
                 label={s.pass}
@@ -359,7 +476,7 @@ function testControls(
               onInput={(text: string) => a.draft(key, text)}
               onSubmit={(text: string) => a.saveStepNote(item.id, step.id, text)}
             />
-            {isSaved && <Text dimColor>{s.noteSaved}</Text>}
+            {isSaved && <Text color="success">{s.noteSaved}</Text>}
           </Box>
         )
       })}
@@ -421,10 +538,20 @@ function outcome(el: Elements, entry: Entry, a: Actions, s: Strings) {
         : s.waiting
 
   return (
-    <Box key={`outcome-${item.id}`} flexDirection="column" gap={1}>
+    <Box key={`outcome-${item.id}`} flexDirection="column" gap="md">
       {isAnswered && response !== undefined && (
-        <Box flexDirection="column">
-          <Text bold>{s.yourAnswer}:</Text>
+        <Box
+          flexDirection="column"
+          gap="xs"
+          paddingX="md"
+          paddingY="sm"
+          borderStyle="round"
+          borderColor="success"
+          borderDimColor
+        >
+          <Text weight="bold" color="success">
+            {s.yourAnswer}:
+          </Text>
           {ownerSummary(item, response, s).map(line => (
             <Text>{line}</Text>
           ))}
@@ -432,7 +559,7 @@ function outcome(el: Elements, entry: Entry, a: Actions, s: Strings) {
       )}
       <Text dimColor>{state}</Text>
       {item.closed === undefined && (
-        <Box flexDirection="row" gap={1}>
+        <Box flexDirection="row" flexWrap="wrap" gap="sm">
           {isAnswered && (
             <Button key={`undo-${item.id}`} label={s.undo} onPress={() => a.undo(item.id)} />
           )}
