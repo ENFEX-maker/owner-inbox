@@ -6,7 +6,7 @@
 import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Register } from 'claude-code'
 
-import type { Delivery, Entry, Item, Phase, Receipt, Response, Sections, Snapshot, StepResult } from '../types'
+import type { Delivery, Entry, Item, Phase, Receipt, Response, Sections, Shelf, Snapshot, StepResult } from '../types'
 import {
   type AddInput,
   ID_RE,
@@ -244,6 +244,8 @@ type Memory = {
   lastDrop: string | undefined
   /** The test whose send waits for a second press. */
   confirmSend: string | null
+  /** The part of the list whose clearing waits for a second press. */
+  confirmClear: 'done' | 'archive' | null
   /** Whether the running turn put anything into the inbox itself. */
   addedInTurn: boolean
   /** Whether the transcript was told that pushes are refused here. */
@@ -271,6 +273,7 @@ function freshMemory(): Memory {
     dueCount: 0,
     lastDrop: undefined,
     confirmSend: null,
+    confirmClear: null,
     addedInTurn: false,
     pushWarned: false,
     drafts: new Map(),
@@ -440,10 +443,20 @@ async function refreshOnce($: $, mayWake: boolean): Promise<void> {
   mem.dueCount = dueDeliveries(entries, receipts, mem.sessionId).length
   if (inbox.generation !== mem.drawn) {
     mem.drawn = inbox.generation
-    const kept = [
-      ...entries.filter(entry => entry.status !== 'done'),
-      ...entries.filter(entry => entry.status === 'done').slice(0, DONE_KEPT),
-    ]
+    // Everything still waiting, everything answered and not filed away, and
+    // the newest of what is done and of the archive; nothing cleared.
+    let done = 0
+    let archived = 0
+    const kept = entries.filter(entry => {
+      const finished = entry.status === 'answered' || entry.status === 'done'
+      const shelf = entry.response?.shelf
+      if (!finished) return true
+      if (shelf === 'cleared') return false
+      if (shelf === 'archive') return archived++ < DONE_KEPT
+      if (entry.status === 'answered') return true
+
+      return done++ < DONE_KEPT
+    })
     await update($, snapshot, () => ({ entries: kept }))
 
     const before = mem.known
@@ -580,6 +593,7 @@ async function saveSteps(
 
 async function selectItem($: $, id: string | null): Promise<void> {
   mem.confirmSend = null
+  mem.confirmClear = null
   await say($, null)
   await update($, selected, () => id)
   if (id === null || !ID_RE.test(id)) return
@@ -662,7 +676,8 @@ async function undoAnswer($: $, id: string): Promise<void> {
   const response = await inbox.readResponse(id)
   if (item === undefined || response === undefined || item.closed !== undefined) return
   const now = await $.clock.now()
-  const { answeredAt: _at, archived: _archived, archivedAt: _archivedAt, ...rest } = response
+  const { answeredAt: _at, archived: _archived, archivedAt: _archivedAt, shelf: _shelf, shelfAt: _shelfAt, ...rest } =
+    response
   await inbox.writeResponse({ ...rest, status: 'draft', retractedAt: now, updatedAt: now })
   await refresh($)
 }
@@ -676,6 +691,49 @@ async function archiveItem($: $, id: string): Promise<void> {
   await inbox.writeResponse({ ...response, archived: true, archivedAt: now, updatedAt: now })
   await inbox.markSeen([id], now)
   await update($, selected, () => null)
+  await refresh($)
+}
+
+async function toggleSection($: $, section: keyof Sections): Promise<void> {
+  if (mem.confirmClear !== null) {
+    mem.confirmClear = null
+    await say($, null)
+  }
+  await update($, sections, old => ({ ...old, [section]: !old[section] }))
+}
+
+/**
+ * Files every done item in the archive, or every done or archived item out of
+ * the pane. Clearing waits for a second press. Only the owner's own response
+ * changes: an answer stands, and one not delivered yet still is.
+ */
+async function shelve($: $, from: 'done' | 'archive', to: Shelf): Promise<void> {
+  const inbox = await store($)
+  await inbox.scan()
+  const { items, responses, receipts, seen } = inbox.contents()
+  const targets = buildEntries(items, responses, seen, receipts).filter(
+    entry =>
+      (entry.status === 'answered' || entry.status === 'done') &&
+      (from === 'done' ? entry.response?.shelf === undefined : entry.response?.shelf === 'archive'),
+  )
+  if (targets.length === 0) return
+  if (to === 'cleared' && mem.confirmClear !== from) {
+    mem.confirmClear = from
+    await say($, config.s.clearNotice)
+
+    return
+  }
+  mem.confirmClear = null
+  await say($, null)
+  const now = await $.clock.now()
+  for (const { item } of targets) {
+    const response = await inbox.readResponse(item.id)
+    await inbox.writeResponse(
+      response === undefined
+        ? { v: 1, id: item.id, status: 'draft', updatedAt: now, shelf: to, shelfAt: now }
+        : { ...response, shelf: to, shelfAt: now },
+    )
+  }
   await refresh($)
 }
 
@@ -713,7 +771,7 @@ async function setPhase($: $, id: string, phase: Phase | null): Promise<void> {
 function actions($: $): Actions {
   return {
     select: id => void serial(() => selectItem($, id)),
-    toggle: section => void update($, sections, old => ({ ...old, [section]: !old[section] })),
+    toggle: section => void serial(() => toggleSection($, section)),
     choose: (id, choice) => void serial(() => chooseOption($, id, choice)),
     sendText: (id, text) => void serial(() => sendText($, id, text)),
     draft: (key, text) => {
@@ -726,6 +784,7 @@ function actions($: $): Actions {
     undo: id => void serial(() => undoAnswer($, id)),
     archive: id => void serial(() => archiveItem($, id)),
     setPhase: (id, phase) => void serial(() => setPhase($, id, phase)),
+    shelve: (from, to) => void serial(() => shelve($, from, to)),
   }
 }
 
@@ -1011,6 +1070,7 @@ async function paneModel($: $) {
     notice: await read($, notice),
     now: await $.clock.now(),
     confirming: mem.confirmSend,
+    confirmingClear: mem.confirmClear,
   }
 }
 

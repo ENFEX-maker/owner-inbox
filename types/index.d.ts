@@ -54,6 +54,12 @@ export type Response = {
   /** Free text: an answer of its own, or a note to the choice. */
   text?: string
   steps?: Record<string, StepResult>
+  /**
+   * Where the owner filed a finished item: in the archive, or out of the pane
+   * (`cleared`). Nothing else changes: the session's answer stands.
+   */
+  shelf?: Shelf
+  shelfAt?: number
   /** The owner put it away; it counts as done. */
   archived?: boolean
   archivedAt?: number
@@ -103,7 +109,10 @@ export type Entry = {
 export type Snapshot = { entries: Entry[] }
 
 /** Which collapsible parts of the pane are expanded. */
-export type Sections = { progress?: boolean; later?: boolean; done?: boolean }
+export type Sections = { progress?: boolean; later?: boolean; done?: boolean; archive?: boolean }
+
+/** Where a finished item is filed: the archive, or out of the pane. */
+export type Shelf = 'archive' | 'cleared'
 
 declare module 'claude-code' {
   interface PluginState {

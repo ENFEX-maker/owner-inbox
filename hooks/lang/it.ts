@@ -11,10 +11,7 @@ export const it: Strings = {
       ...(progress > 0 ? [`${progress} in corso`] : []),
     ].join(', ') || 'niente in sospeso'}`,
   bandLater: later => `(⏸ ${later} per dopo)`,
-  header: (open, fresh) =>
-    open === 0
-      ? 'Attivi: niente in sospeso'
-      : `Attivi (${open})${fresh > 0 ? ` · ${plural(fresh, 'nuovo', 'nuovi')}` : ''}`,
+  header: (open, fresh) => `Aperti (${open})${fresh > 0 ? ` · ${plural(fresh, 'nuovo', 'nuovi')}` : ''}`,
   empty: "Al momento non c'è niente che ti aspetta.",
   progressSection: n => `In corso (${n})`,
   laterSection: n => `Più tardi (${n})`,
@@ -22,7 +19,7 @@ export const it: Strings = {
   phaseNote: 'Nota per la sessione (facoltativa)',
   toProgress: '▶ In corso',
   toLater: '⏸ Più tardi',
-  toActive: '↺ Di nuovo attivo',
+  toActive: '↺ Riapri',
   phaseState: (phase, time) => (phase === 'progress' ? `In corso da: ${time}.` : `Rimandato: ${time}.`),
   yourNote: 'La tua nota',
   type: {
@@ -36,6 +33,12 @@ export const it: Strings = {
   fresh: 'nuovo',
   back: '← Indietro',
   doneSection: n => `Fatto (${n})`,
+  archiveSection: n => `Archivio (${n})`,
+  archiveAll: 'Archivia tutto',
+  clearAll: 'Svuota completati',
+  clearArchive: 'Svuota archivio',
+  confirmClear: n => `Sì, svuota (${n})`,
+  clearNotice: 'Gli elementi svuotati spariscono dal pannello e non si possono recuperare qui. Le risposte alle sessioni restano. Premi di nuovo per confermare.',
   from: label => `da ${label}`,
   recommended: 'consigliato',
   ownAnswer: 'Risposta libera',

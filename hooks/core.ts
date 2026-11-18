@@ -375,10 +375,11 @@ export function isResponse(x: unknown, id?: string): x is Response {
   if (x.status !== 'draft' && x.status !== 'answered') return false
   if (x.choice !== undefined && !isString(x.choice)) return false
   if (x.text !== undefined && !isString(x.text)) return false
-  for (const time of [x.answeredAt, x.archivedAt, x.retractedAt, x.phaseAt]) {
+  for (const time of [x.answeredAt, x.archivedAt, x.retractedAt, x.phaseAt, x.shelfAt]) {
     if (time !== undefined && !isNumber(time)) return false
   }
   if (x.phase !== undefined && x.phase !== 'progress' && x.phase !== 'later') return false
+  if (x.shelf !== undefined && x.shelf !== 'archive' && x.shelf !== 'cleared') return false
   if (x.phaseNote !== undefined && !isString(x.phaseNote)) return false
   if (x.archived !== undefined && typeof x.archived !== 'boolean') return false
   if (x.steps !== undefined) {

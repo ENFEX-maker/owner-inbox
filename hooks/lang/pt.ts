@@ -11,10 +11,7 @@ export const pt: Strings = {
       ...(progress > 0 ? [`${progress} em andamento`] : []),
     ].join(', ') || 'nada pendente'}`,
   bandLater: later => `(⏸ ${later} para depois)`,
-  header: (open, fresh) =>
-    open === 0
-      ? 'Ativos: nada pendente'
-      : `Ativos (${open})${fresh > 0 ? ` · ${plural(fresh, 'novo', 'novos')}` : ''}`,
+  header: (open, fresh) => `Abertos (${open})${fresh > 0 ? ` · ${plural(fresh, 'novo', 'novos')}` : ''}`,
   empty: 'Nada está esperando por você agora.',
   progressSection: n => `Em andamento (${n})`,
   laterSection: n => `Mais tarde (${n})`,
@@ -22,7 +19,7 @@ export const pt: Strings = {
   phaseNote: 'Nota para a sessão (opcional)',
   toProgress: '▶ Em andamento',
   toLater: '⏸ Mais tarde',
-  toActive: '↺ Ativar de novo',
+  toActive: '↺ Reabrir',
   phaseState: (phase, time) => (phase === 'progress' ? `Em andamento desde ${time}.` : `Adiado: ${time}.`),
   yourNote: 'Sua nota',
   type: {
@@ -36,6 +33,12 @@ export const pt: Strings = {
   fresh: 'novo',
   back: '← Voltar',
   doneSection: n => `Concluído (${n})`,
+  archiveSection: n => `Arquivo (${n})`,
+  archiveAll: 'Arquivar tudo',
+  clearAll: 'Limpar concluídos',
+  clearArchive: 'Limpar arquivo',
+  confirmClear: n => `Sim, limpar (${n})`,
+  clearNotice: 'Os itens limpos saem do painel e não podem ser recuperados aqui. As respostas às sessões continuam valendo. Pressione de novo para confirmar.',
   from: label => `de ${label}`,
   recommended: 'recomendado',
   ownAnswer: 'Sua própria resposta',

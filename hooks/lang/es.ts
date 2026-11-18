@@ -11,10 +11,7 @@ export const es: Strings = {
       ...(progress > 0 ? [`${progress} en curso`] : []),
     ].join(', ') || 'nada pendiente'}`,
   bandLater: later => `(⏸ ${later} para más tarde)`,
-  header: (open, fresh) =>
-    open === 0
-      ? 'Activos: nada pendiente'
-      : `Activos (${open})${fresh > 0 ? ` · ${plural(fresh, 'nuevo', 'nuevos')}` : ''}`,
+  header: (open, fresh) => `Abiertos (${open})${fresh > 0 ? ` · ${plural(fresh, 'nuevo', 'nuevos')}` : ''}`,
   empty: 'Ahora no hay nada esperándote.',
   progressSection: n => `En curso (${n})`,
   laterSection: n => `Más tarde (${n})`,
@@ -22,7 +19,7 @@ export const es: Strings = {
   phaseNote: 'Nota para la sesión (opcional)',
   toProgress: '▶ En curso',
   toLater: '⏸ Más tarde',
-  toActive: '↺ Activar de nuevo',
+  toActive: '↺ Reabrir',
   phaseState: (phase, time) => (phase === 'progress' ? `En curso desde ${time}.` : `Aplazado: ${time}.`),
   yourNote: 'Tu nota',
   type: {
@@ -36,6 +33,12 @@ export const es: Strings = {
   fresh: 'nuevo',
   back: '← Volver',
   doneSection: n => `Hecho (${n})`,
+  archiveSection: n => `Archivo (${n})`,
+  archiveAll: 'Archivar todo',
+  clearAll: 'Vaciar hechos',
+  clearArchive: 'Vaciar archivo',
+  confirmClear: n => `Sí, vaciar (${n})`,
+  clearNotice: 'Los elementos vaciados desaparecen del panel y no se pueden recuperar aquí. Las respuestas a las sesiones se mantienen. Pulsa de nuevo para confirmar.',
   from: label => `de ${label}`,
   recommended: 'recomendado',
   ownAnswer: 'Tu propia respuesta',

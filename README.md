@@ -10,7 +10,8 @@ Kurzanleitung auf Deutsch: [README.de.md](README.de.md).
 
 - **One inbox for all sessions.** Every Claude Code session on your machine writes to the same inbox, so items from parallel sessions show up in one list, grouped by project, each with the session it came from.
 - **Stays visible.** Open items wait in the *For you* pane beside the chat and in a line above the prompt (`For you: 2 open, 1 new` and, at its right edge, `(⏸ 1 later)`) until you deal with them, however far the chat has scrolled.
-- **Sorted the way you work.** The pane has four parts, each with its own symbol and color: *● Active*, *▶ In progress*, *⏸ Later* and *✓ Done*. Every item is a card with an icon for its type (💬 question, 🧭 decision, 👍 approval, 👀 review, 📌 task, 🧪 test), its project, its time and the session that filed it; new ones stand out. Mark an item as in progress or put it off for later, with a note to the session if you like; the session is told, and the item stays open until you answer.
+- **Sorted the way you work.** The pane reads like the app's own panels, its parts divided by thin rules: *● Open* in red at the top, then *▶ In progress*, *⏸ Later*, *✓ Done* and *📦 Archive*. Each item shows an icon for its type (💬 question, 🧭 decision, 👍 approval, 👀 review, 📌 task, 🧪 test), its title and time, and below its type, its project and the session that filed it; new ones are marked *● new*.
+- **Tidy when you like.** Move everything done into the archive, or clear what is done or archived out of the pane (it asks once more first). Clearing only hides: the files stay, and an answer not yet delivered still reaches its session. Mark an item as in progress or put it off for later, with a note to the session if you like; the session is told, and the item stays open until you answer.
 - **Cheap for sessions.** Adding an item is one tool call that returns at once. The session keeps working; it is never blocked waiting for you.
 - **A safety net for questions asked in chat.** Sessions are told to use the inbox, and still forget now and then. When a session ends its turn with a message that asks you something and put nothing into the inbox, the inbox takes the question itself, marked *taken from the chat*. If you answer in that chat instead, your next message there closes it again. The check looks for question marks in the closing lines of the message (leaving out code, quotes, links and headings) and costs no model call.
 - **Answers come back by themselves.** When you answer, the session that asked receives your answer as a message within a few seconds. If it is busy, the answer arrives right after its current turn. If the host does not let the plugin wake the session, the answer goes along with the session's next tool result or your next prompt. The session also hears when you start on its item, put it off for later, put it away unanswered or take an answer back.
@@ -108,7 +109,7 @@ Set in the plugin's options (the config menu, or `pluginConfigs` in your Claude 
 - The plugin makes no network calls of its own and writes no logs of its own; Claude Code's debug log gets one line per push, naming the item's id, not its text. Notifications show the item's type and title. With `push` on, a new item's project, type and title also go to Claude Code's `PushNotification` tool, which sends them to your phone while Remote Control is connected.
 - Texts that look like API keys, tokens, private keys or passwords are refused when a session adds them and held back when you type them as an answer. This is a guard, not a guarantee: never paste secrets.
 - Answers are plain files, so whoever can write the folder could write an answer in your place. The plugin denies Claude's own file tools (Write, Edit) any path in the folder and shell commands that name it, so a session cannot approve its own request. That is a best effort against mistakes, not a security boundary against other programs on your machine.
-- Items are never deleted by the plugin. You can put an item away (*Put away*), and sessions close items they are done with. To clear the inbox, delete files from the folder.
+- Items are never deleted by the plugin. You can put an item away (*Put away*), archive or clear what is done, and sessions close items they are done with. Clearing hides items in the pane; to remove them for good, delete their files from the folder.
 
 ## Languages
 
@@ -125,7 +126,7 @@ To add a language:
 - Mods are early access; a Claude Code update may need a matching update here.
 - The Claude app on a phone shows no mods in a Remote Control session (as of Claude Code 2.1.325): neither the pane nor the band is there. New items reach the phone as push notifications instead (`push`); you answer at the computer, or in the chat of the session you follow on the phone. A push goes out from the session that added the item, so it reaches the phone only where that session's Remote Control is connected.
 - If the plugin reloads (an update, a changed option) while a wake-up message waits behind a running turn, the session may get that answer twice.
-- Items are never deleted, and every session reads the whole folder when it starts. With a few items a day that stays small for a long time; archiving old items is not built yet.
+- Files are never deleted, and every session reads the whole folder when it starts, cleared items included. With a few items a day that stays small for a long time; to shrink the folder, delete old files by hand.
 
 ## Development
 

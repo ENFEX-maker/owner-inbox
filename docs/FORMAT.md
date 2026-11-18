@@ -58,6 +58,7 @@ All times are milliseconds since the Unix epoch. Every file carries `"v": 1`.
 - `choice`: the option for `question` and `decision`; `approved` or `rejected` for `approval`; `done` or `declined` for `review` and `task`.
 - `text`: an answer in words, or a note to the choice.
 - `archived`, `archivedAt`: the owner put the item away (answered or not); it counts as done.
+- `shelf`, `shelfAt`: where the owner filed a finished (done or answered) item: `archive`, or `cleared` out of the pane. It changes nothing else: an answer stands and is still delivered. A response written only for this (an item the session closed without one) is a `draft` with no other fields. Taking an answer back drops them.
 - `retractedAt`: the owner took an answer back; the response is a `draft` again until the next answer.
 - `phase`, `phaseAt`, `phaseNote`: the owner filed the item before answering it, as `progress` (working on it) or `later` (put off), with an optional note to the session. Absent while the item is simply open. An answer drops them.
 - `answeredAt` names the answer; a changed answer gets a later one than anything delivered before.

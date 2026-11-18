@@ -11,10 +11,7 @@ export const fr: Strings = {
       ...(progress > 0 ? [`${progress} en cours`] : []),
     ].join(', ') || 'rien en attente'}`,
   bandLater: later => `(⏸ ${later} pour plus tard)`,
-  header: (open, fresh) =>
-    open === 0
-      ? 'Actifs : rien en attente'
-      : `Actifs (${open})${fresh > 0 ? ` · ${plural(fresh, 'nouveau', 'nouveaux')}` : ''}`,
+  header: (open, fresh) => `Ouverts (${open})${fresh > 0 ? ` · ${plural(fresh, 'nouveau', 'nouveaux')}` : ''}`,
   empty: 'Rien ne vous attend pour le moment.',
   progressSection: n => `En cours (${n})`,
   laterSection: n => `Plus tard (${n})`,
@@ -22,7 +19,7 @@ export const fr: Strings = {
   phaseNote: 'Note pour la session (facultatif)',
   toProgress: '▶ En cours',
   toLater: '⏸ Plus tard',
-  toActive: '↺ Réactiver',
+  toActive: '↺ Rouvrir',
   phaseState: (phase, time) => (phase === 'progress' ? `En cours depuis ${time}.` : `Reporté : ${time}.`),
   yourNote: 'Votre note',
   type: {
@@ -36,6 +33,12 @@ export const fr: Strings = {
   fresh: 'nouveau',
   back: '← Retour',
   doneSection: n => `Terminé (${n})`,
+  archiveSection: n => `Archives (${n})`,
+  archiveAll: 'Tout archiver',
+  clearAll: 'Vider les terminés',
+  clearArchive: 'Vider les archives',
+  confirmClear: n => `Oui, vider (${n})`,
+  clearNotice: 'Les éléments vidés quittent le panneau et ne peuvent pas être récupérés ici. Les réponses aux sessions restent. Appuyez à nouveau pour confirmer.',
   from: label => `de ${label}`,
   recommended: 'recommandé',
   ownAnswer: 'Votre propre réponse',

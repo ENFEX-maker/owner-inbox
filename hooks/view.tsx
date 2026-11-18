@@ -1,7 +1,7 @@
 // The pane beside the chat: the list of what waits for the owner, grouped by
 // project, and one item opened with the buttons that answer it. It draws from
 // a model and calls actions; it reads and writes nothing itself.
-import type { Entry, Item, ItemType, Phase, Response, Sections, StepResult } from '../types'
+import type { Entry, Item, ItemType, Phase, Response, Sections, Shelf, StepResult } from '../types'
 import { counts, groupByProject, isPending } from './core'
 import { formatTime, type Strings } from './i18n'
 
@@ -24,6 +24,8 @@ export type Actions = {
   archive: (id: string) => void
   /** Files an item as being worked on or put off, or (null) back to active, with the drafted note. */
   setPhase: (id: string, phase: Phase | null) => void
+  /** Moves every done item to the archive, or done or archived items out of the pane. */
+  shelve: (from: 'done' | 'archive', to: Shelf) => void
 }
 
 export type PaneModel = {
@@ -34,6 +36,8 @@ export type PaneModel = {
   now: number
   /** The test whose send waits for a second press: it has steps without a result. */
   confirming: string | null
+  /** The part whose clearing waits for a second press. */
+  confirmingClear: 'done' | 'archive' | null
 }
 
 /** The key a draft is kept under: the item, or one step of a test. */
@@ -43,22 +47,26 @@ export const draftKey = (id: string, stepId?: string) =>
 /** The key the note to the session about a phase is drafted under. */
 export const phaseKey = (id: string) => `${id}:phase`
 
-/** Whether a section is expanded: in progress and later are, unless closed. */
+/** Whether a section is expanded: in progress and later are, unless closed; done and the archive once opened. */
 const isOpen = (sections: Sections, key: keyof Sections) =>
-  key === 'done' ? sections.done === true : sections[key] !== false
+  key === 'done' || key === 'archive' ? sections[key] === true : sections[key] !== false
 
 const DONE_SHOWN = 20
 
-// The look: each section has one symbol and one color, used for its heading,
-// its cards' borders and the item's own page; each type of item one icon.
-type Look = { icon: string; color: string }
+// The look follows the app's own panels: plain rows, thin rules between the
+// parts, color only where it must catch the eye (what is open, and what is
+// new). Each part keeps its symbol; each type of item has an icon.
+type Part = 'open' | keyof Sections
 
-const LOOK: Record<'open' | keyof Sections, Look> = {
-  open: { icon: '●', color: 'claude' },
-  progress: { icon: '▶', color: 'suggestion' },
-  later: { icon: '⏸', color: 'warning' },
-  done: { icon: '✓', color: 'success' },
+const SYMBOL: Record<Part, string> = {
+  open: '●',
+  progress: '▶',
+  later: '⏸',
+  done: '✓',
+  archive: '📦',
 }
+
+const OPEN_COLOR = 'error'
 
 const TYPE_ICON: Record<ItemType, string> = {
   question: '💬',
@@ -69,9 +77,7 @@ const TYPE_ICON: Record<ItemType, string> = {
   test: '🧪',
 }
 
-function lookOf(status: Entry['status']): Look {
-  return status === 'open' || status === 'progress' || status === 'later' ? LOOK[status] : LOOK.done
-}
+const isFinished = (entry: Entry) => entry.status === 'answered' || entry.status === 'done'
 
 export function renderPane(el: Elements, model: PaneModel, a: Actions, s: Strings) {
   const entry =
@@ -82,101 +88,105 @@ export function renderPane(el: Elements, model: PaneModel, a: Actions, s: String
   return entry === undefined ? list(el, model, a, s) : detail(el, entry, model, a, s)
 }
 
-/** Who filed it and how, below the title: the session's name, taken from chat. */
-function origin(entry: Entry, s: Strings): string {
+/** A thin rule between parts, as the app's own panels have. */
+function rule(el: Elements, key: string) {
+  const { Markdown } = el
+
+  return <Markdown key={`rule-${key}`} text="---" />
+}
+
+/** Who filed it and how: the session's name, taken from chat. */
+function origin(entry: Entry, s: Strings): string[] {
   return [
     ...(entry.item.source.label === undefined ? [] : [s.from(entry.item.source.label)]),
     ...(entry.item.captured === true ? [s.captured] : []),
-  ].join(' · ')
+  ]
 }
 
-/** The line above a title: icon, type and project. */
-function kind(item: Item, s: Strings): string {
-  return `${TYPE_ICON[item.type]} ${s.type[item.type]} · ${item.project}`
-}
-
-/** One item in the list: a card with its kind and age, the title, and who filed it. */
-function card(el: Elements, entry: Entry, model: PaneModel, a: Actions, s: Strings) {
+/** One item in the list: icon, title and age, and below what it is and where from. */
+function row(el: Elements, entry: Entry, model: PaneModel, a: Actions, s: Strings) {
   const { Box, Button, Text } = el
   const { item } = entry
-  const look = lookOf(entry.status)
   const isFresh = entry.status === 'open' && entry.isNew
-  const isDone = entry.status === 'answered' || entry.status === 'done'
-  const from = origin(entry, s)
+  const details = [s.type[item.type], item.project, ...origin(entry, s)].join(' · ')
 
   return (
-    <Box
-      key={`card-${item.id}`}
-      flexDirection="column"
-      gap="xs"
-      paddingX="md"
-      paddingY="sm"
-      borderStyle="round"
-      borderColor={look.color}
-      borderDimColor={!isFresh}
-    >
-      <Box flexDirection="row" justifyContent="space-between" gap="sm">
-        <Text size="footnote" dimColor>
-          {kind(item, s)}
-        </Text>
-        <Text size="footnote" dimColor>
-          {formatTime(item.createdAt, model.now, s)}
-        </Text>
-      </Box>
-      <Button key={`item-${item.id}`} plain onPress={() => a.select(item.id)}>
-        <Text weight="semibold" dimColor={isDone}>
-          {item.title}
-        </Text>
-      </Button>
-      {(isFresh || from !== '') && (
+    <Box key={`card-${item.id}`} flexDirection="row" gap="md">
+      <Text>{TYPE_ICON[item.type]}</Text>
+      <Box flexDirection="column" flexGrow={1} flexShrink={1} gap="xs">
+        <Box flexDirection="row" justifyContent="space-between" gap="sm">
+          <Button key={`item-${item.id}`} plain onPress={() => a.select(item.id)}>
+            <Text weight="semibold" dimColor={isFinished(entry)}>
+              {item.title}
+            </Text>
+          </Button>
+          <Text size="footnote" dimColor>
+            {formatTime(item.createdAt, model.now, s)}
+          </Text>
+        </Box>
         <Box flexDirection="row" gap="sm">
           {isFresh && (
-            <Text size="footnote" color={look.color} weight="semibold">
-              {look.icon} {s.fresh}
+            <Text size="footnote" color={OPEN_COLOR} weight="semibold">
+              ● {s.fresh}
             </Text>
           )}
-          {from !== '' && (
-            <Text size="footnote" dimColor>
-              {from}
-            </Text>
-          )}
+          <Text size="footnote" dimColor>
+            {details}
+          </Text>
         </Box>
-      )}
+      </Box>
     </Box>
   )
 }
 
-/** A heading in a section's color; a press folds the section where it folds. */
-function heading(el: Elements, key: 'open' | keyof Sections, title: string, model: PaneModel, a: Actions) {
+/** A part's heading; open's in color, the others fold. */
+function heading(el: Elements, part: Part, title: string, model: PaneModel, a: Actions) {
   const { Box, Button, Text } = el
-  const look = LOOK[key]
-  if (key === 'open') {
+  if (part === 'open') {
     return (
       <Box key="heading-open" flexDirection="row" gap="sm">
-        <Text size="heading" weight="bold" color={look.color}>
-          {look.icon}
+        <Text weight="bold" color={OPEN_COLOR}>
+          {SYMBOL.open}
         </Text>
-        <Text size="heading" weight="bold" color={look.color}>
+        <Text weight="bold" color={OPEN_COLOR}>
           {title}
         </Text>
       </Box>
     )
   }
-  const expanded = isOpen(model.sections, key)
+  const expanded = isOpen(model.sections, part)
 
   return (
-    <Button key={`section-${key}`} plain onPress={() => a.toggle(key)}>
-      <Text size="heading" weight="bold" color={look.color}>
-        {look.icon} {title}
+    <Button key={`section-${part}`} plain onPress={() => a.toggle(part)}>
+      <Text weight="bold">
+        {SYMBOL[part]} {title}
       </Text>
       <Text dimColor>{expanded ? ' ▾' : ' ▸'}</Text>
     </Button>
   )
 }
 
+/** What is done can go to the archive or out of the pane; the archive can be emptied. */
+function shelfButtons(el: Elements, part: 'done' | 'archive', count: number, model: PaneModel, a: Actions, s: Strings) {
+  const { Box, Button } = el
+  const confirming = model.confirmingClear === part
+
+  return (
+    <Box key={`shelf-${part}`} flexDirection="row" flexWrap="wrap" gap="sm">
+      {part === 'done' && <Button key="archive-done" label={s.archiveAll} onPress={() => a.shelve('done', 'archive')} />}
+      <Button
+        key={`clear-${part}`}
+        label={confirming ? s.confirmClear(count) : part === 'done' ? s.clearAll : s.clearArchive}
+        variant={confirming ? 'primary' : 'secondary'}
+        onPress={() => a.shelve(part, 'cleared')}
+      />
+    </Box>
+  )
+}
+
 function section(
   el: Elements,
-  key: keyof Sections,
+  part: keyof Sections,
   title: string,
   entries: readonly Entry[],
   model: PaneModel,
@@ -185,13 +195,15 @@ function section(
 ) {
   const { Box } = el
   if (entries.length === 0) return null
-  const expanded = isOpen(model.sections, key)
-  const shown = key === 'done' ? entries.slice(0, DONE_SHOWN) : entries
+  const expanded = isOpen(model.sections, part)
+  const shown = part === 'done' || part === 'archive' ? entries.slice(0, DONE_SHOWN) : entries
 
   return (
-    <Box key={key} flexDirection="column" gap="md">
-      {heading(el, key, title, model, a)}
-      {expanded && shown.map(one => card(el, one, model, a, s))}
+    <Box key={part} flexDirection="column" gap="md">
+      {rule(el, part)}
+      {heading(el, part, title, model, a)}
+      {expanded && shown.map(one => row(el, one, model, a, s))}
+      {expanded && (part === 'done' || part === 'archive') && shelfButtons(el, part, entries.length, model, a, s)}
     </Box>
   )
 }
@@ -202,22 +214,25 @@ function list(el: Elements, model: PaneModel, a: Actions, s: Strings) {
   const progress = model.entries.filter(one => one.status === 'progress')
   const later = model.entries.filter(one => one.status === 'later')
   // Answered is done from the owner's side: the session takes it from there.
-  const done = model.entries.filter(one => one.status === 'answered' || one.status === 'done')
+  const finished = model.entries.filter(isFinished)
+  const done = finished.filter(one => one.response?.shelf === undefined)
+  const archived = finished.filter(one => one.response?.shelf === 'archive')
   const { open: openCount, fresh } = counts(model.entries)
 
   return (
-    <Box flexDirection="column" gap="xl" paddingX="sm" paddingY="md">
+    <Box flexDirection="column" gap="lg" paddingX="sm" paddingY="md">
       {model.notice !== null && <Text color="warning">{model.notice}</Text>}
       <Box key="open" flexDirection="column" gap="md">
         {heading(el, 'open', s.header(openCount, fresh), model, a)}
         {open.length + progress.length + later.length === 0 && <Text dimColor>{s.empty}</Text>}
         {groupByProject(open)
           .flatMap(group => group.entries)
-          .map(one => card(el, one, model, a, s))}
+          .map(one => row(el, one, model, a, s))}
       </Box>
       {section(el, 'progress', s.progressSection(progress.length), progress, model, a, s)}
       {section(el, 'later', s.laterSection(later.length), later, model, a, s)}
       {section(el, 'done', s.doneSection(done.length), done, model, a, s)}
+      {section(el, 'archive', s.archiveSection(archived.length), archived, model, a, s)}
     </Box>
   )
 }
@@ -225,45 +240,37 @@ function list(el: Elements, model: PaneModel, a: Actions, s: Strings) {
 function detail(el: Elements, entry: Entry, model: PaneModel, a: Actions, s: Strings) {
   const { Box, Text, Button, Markdown } = el
   const { item } = entry
-  const look = lookOf(entry.status)
-  const from = origin(entry, s)
   const pending = isPending(entry.status)
+  const byline = [...origin(entry, s), formatTime(item.createdAt, model.now, s)].join(' · ')
 
   return (
-    <Box flexDirection="column" gap="xl" paddingX="sm" paddingY="md">
+    <Box flexDirection="column" gap="lg" paddingX="sm" paddingY="md">
       <Button key="back" plain label={s.back} onPress={() => a.select(null)} />
       <Box key={`head-${item.id}`} flexDirection="column" gap="sm">
-        <Text size="footnote" color={look.color}>
-          {look.icon} {kind(item, s)}
+        <Text size="footnote" dimColor>
+          {TYPE_ICON[item.type]} {s.type[item.type]} · {item.project}
         </Text>
         <Text size="title" weight="bold">
           {item.title}
         </Text>
         <Text size="footnote" dimColor>
-          {[from, formatTime(item.createdAt, model.now, s)].filter(part => part !== '').join(' · ')}
+          {byline}
         </Text>
       </Box>
+      {item.body !== undefined && rule(el, `body-${item.id}`)}
       {item.body !== undefined && <Markdown key={`body-${item.id}`} text={item.body} />}
       {pending && phaseState(el, entry, model, s)}
+      {rule(el, `answer-${item.id}`)}
       {pending ? (
-        <Box
-          key={`answer-box-${item.id}`}
-          flexDirection="column"
-          gap="md"
-          paddingX="md"
-          paddingY="md"
-          borderStyle="round"
-          borderColor={look.color}
-        >
-          <Text weight="bold" color={look.color}>
-            {s.yourAnswer}
-          </Text>
+        <Box key={`answer-box-${item.id}`} flexDirection="column" gap="md">
+          <Text weight="bold">{s.yourAnswer}</Text>
           {controls(el, item, entry.response, model, a, s)}
         </Box>
       ) : (
         outcome(el, entry, a, s)
       )}
       {model.notice !== null && <Text color="warning">{model.notice}</Text>}
+      {pending && rule(el, `phase-${item.id}`)}
       {pending && phaseControls(el, entry, a, s)}
       {pending && (
         <Button key={`dismiss-${item.id}`} plain dimColor label={s.archive} onPress={() => a.archive(item.id)} />
@@ -277,13 +284,12 @@ function phaseState(el: Elements, entry: Entry, model: PaneModel, s: Strings) {
   const { Box, Text } = el
   const response = entry.response
   if (response?.phase === undefined || response.phaseAt === undefined) return null
-  const look = LOOK[response.phase]
 
   return (
     <Box key={`phase-${entry.item.id}`} flexDirection="column" gap="xs">
       <Box flexDirection="row" gap="sm">
-        <Text color={look.color}>{look.icon}</Text>
-        <Text color={look.color}>{s.phaseState(response.phase, formatTime(response.phaseAt, model.now, s))}</Text>
+        <Text>{SYMBOL[response.phase]}</Text>
+        <Text>{s.phaseState(response.phase, formatTime(response.phaseAt, model.now, s))}</Text>
       </Box>
       {response.phaseNote !== undefined && (
         <Text dimColor>
@@ -423,7 +429,7 @@ function testControls(
 
   return (
     <Box key={`answer-${item.id}`} flexDirection="column" gap="md">
-      {steps.map(step => {
+      {steps.map((step, index) => {
         const result = results[step.id]?.result
         const key = draftKey(item.id, step.id)
         const saved = results[step.id]?.note
@@ -431,16 +437,8 @@ function testControls(
         const isSaved = saved !== undefined && (draft === undefined || draft.trim() === saved)
 
         return (
-          <Box
-            key={`step-${item.id}-${step.id}`}
-            flexDirection="column"
-            gap="sm"
-            paddingX="md"
-            paddingY="sm"
-            borderStyle="round"
-            borderColor={result === 'pass' ? 'success' : result === 'fail' ? 'error' : 'subtle'}
-            borderDimColor={result === undefined}
-          >
+          <Box key={`step-${item.id}-${step.id}`} flexDirection="column" gap="sm">
+            {index > 0 && rule(el, `step-${item.id}-${step.id}`)}
             <Text
               weight="bold"
               color={result === 'pass' ? 'success' : result === 'fail' ? 'error' : undefined}
@@ -540,18 +538,8 @@ function outcome(el: Elements, entry: Entry, a: Actions, s: Strings) {
   return (
     <Box key={`outcome-${item.id}`} flexDirection="column" gap="md">
       {isAnswered && response !== undefined && (
-        <Box
-          flexDirection="column"
-          gap="xs"
-          paddingX="md"
-          paddingY="sm"
-          borderStyle="round"
-          borderColor="success"
-          borderDimColor
-        >
-          <Text weight="bold" color="success">
-            {s.yourAnswer}:
-          </Text>
+        <Box flexDirection="column" gap="xs">
+          <Text weight="bold">{s.yourAnswer}:</Text>
           {ownerSummary(item, response, s).map(line => (
             <Text>{line}</Text>
           ))}

@@ -161,11 +161,11 @@ describe('a session adds an item', () => {
 
     for (const surface of ['terminal', 'desktop', 'vscode', 'mobile'] as const) {
       const ui = await $.ui.mount({ ...PANE, surface })
-      expect((await ui.find({ type: 'Text', text: /Aktiv/ }))?.text).toBe('Aktiv (1) · 1 neu')
+      expect((await ui.find({ type: 'Text', text: /^Offen \(/ }))?.text).toBe('Offen (1) · 1 neu')
       // A card: icon, type and project above the title, who filed it below.
       expect((await ui.find({ type: 'Button', text: /Ship it\?/ }))?.text).toBe('Ship it?')
-      expect((await ui.find({ type: 'Text', text: /Frage ·/ }))?.text).toBe('💬 Frage · demo')
-      expect((await ui.find({ type: 'Text', text: /von lead/ }))?.text).toBe('von lead')
+      expect((await ui.find({ type: 'Text', text: /Frage ·/ }))?.text).toBe('Frage · demo · von lead')
+      expect((await ui.find({ type: 'Text', text: '💬' }))?.text).toBe('💬')
       expect((await ui.find({ type: 'Text', text: /^● neu$/ }))?.text).toBe('● neu')
       await ui.unmount()
     }
@@ -206,7 +206,7 @@ describe('the owner answers', () => {
 
     await w.clock.advance(10_000)
     expect(w.prompts).toHaveLength(1)
-    expect((await ui.find({ type: 'Text', text: /Aktiv/ }))?.text).toBe('Aktiv: nichts offen')
+    expect((await ui.find({ type: 'Text', text: /^Offen \(/ }))?.text).toBe('Offen (0)')
     await ui.unmount()
   })
 
@@ -437,7 +437,7 @@ describe('what the review found', () => {
     expect(w.toasts).toEqual(['Neu für dich: Rotate the backup disk'])
     const ui = await $.ui.mount({ ...PANE, surface: 'desktop' })
     expect((await ui.find({ type: 'Button', text: /Rotate the backup disk/ }))?.text).toBe('Rotate the backup disk')
-    expect((await ui.find({ type: 'Text', text: /Freigabe ·/ }))?.text).toMatch(/^👍 Freigabe · /)
+    expect((await ui.find({ type: 'Text', text: /Freigabe ·/ }))?.text).toBe('Freigabe · demo · von docs')
     await ui.unmount()
   })
 
@@ -510,7 +510,7 @@ describe('in progress, later, done', () => {
     expect(w.prompts.at(-1)).toMatch(`(id ${id})\nThe owner is working on this now.`)
     expect(w.prompts.at(-1)).toMatch('Note: "starte gleich"')
     expect(w.prompts.at(-1)).toMatch('No answer yet: keep these items open.')
-    expect((await ui.find({ type: 'Text', text: /Aktiv/ }))?.text).toBe('Aktiv: nichts offen')
+    expect((await ui.find({ type: 'Text', text: /^Offen \(/ }))?.text).toBe('Offen (0)')
     expect((await ui.find({ key: 'section-progress' }))?.text).toBe('▶ In Arbeit (1) ▾')
     expect(await ui.find({ key: `card-${id}` })).toBeDefined()
     expect(await ui.find({ type: 'Text', text: /^● neu$/ })).toBeUndefined()
@@ -552,7 +552,7 @@ describe('in progress, later, done', () => {
     await ui.press({ key: `active-${id}` })
     await w.clock.advance(3000)
     expect(w.prompts).toHaveLength(2)
-    expect((await ui.find({ type: 'Text', text: /Aktiv/ }))?.text).toBe('Aktiv (1)')
+    expect((await ui.find({ type: 'Text', text: /^Offen \(/ }))?.text).toBe('Offen (1)')
     await ui.press({ key: `item-${id}` })
     await ui.press({ key: `later-${id}` })
     await ui.press({ key: `item-${id}` })
@@ -599,7 +599,7 @@ describe('the safety net for questions asked in chat alone', () => {
     expect(w.notes).toEqual(['Frage: Shall I push it to GitHub now?'])
     const ui = await $.ui.mount({ ...PANE, surface: 'desktop' })
     expect((await ui.find({ type: 'Button', text: /push it/ }))?.text).toBe('Shall I push it to GitHub now?')
-    expect((await ui.find({ type: 'Text', text: /aus dem Chat/ }))?.text).toBe('aus dem Chat übernommen')
+    expect((await ui.find({ type: 'Text', text: /aus dem Chat/ }))?.text).toBe('Frage · demo · aus dem Chat übernommen')
     await ui.unmount()
 
     w.fs.put(
@@ -705,7 +705,7 @@ describe('several sessions share one inbox', () => {
     expect(w.opened).toContain('Für dich (1)')
 
     const ui = await $.ui.mount({ ...PANE, surface: 'desktop' })
-    expect((await ui.find({ type: 'Text', text: /robot/ }))?.text).toBe('📌 Aufgabe · robot')
+    expect((await ui.find({ type: 'Text', text: /robot/ }))?.text).toBe('Aufgabe · robot · von docs')
     await ui.press({ key: `item-${other}` })
     await ui.press({ key: `yes-${other}` })
     await w.clock.advance(3000)
@@ -842,9 +842,71 @@ describe('the rest of the wiring', () => {
     await $.session.start({ cwd: '/', surface: 'desktop', isInteractive: true })
     await $.tool.call(add({ type: 'review', title: 'Read the README' }))
     const ui = await $.ui.mount({ ...PANE, surface: 'desktop' })
-    expect((await ui.find({ type: 'Text', text: /Active/ }))?.text).toBe('Active (1) · 1 new')
+    expect((await ui.find({ type: 'Text', text: /^Open \(/ }))?.text).toBe('Open (1) · 1 new')
     expect((await ui.find({ type: 'Button', text: /README/ }))?.text).toBe('Read the README')
-    expect((await ui.find({ type: 'Text', text: /Look at ·/ }))?.text).toBe('👀 Look at · demo')
+    expect((await ui.find({ type: 'Text', text: /Look at ·/ }))?.text).toBe('Look at · demo')
+    await ui.unmount()
+  })
+})
+
+describe('the archive', () => {
+  test('what is done goes to the archive, then out of the pane; an answer filed away still arrives', DE, async ($, on) => {
+    const w = world(on)
+    await $.session.start({ cwd: '/', surface: 'desktop', isInteractive: true })
+    const closed = idIn(out(await $.tool.call(add({ type: 'task', title: 'Old task' }))))
+    await $.tool.call({ tool: 'mcp__owner-inbox__resolve', ids: [closed] })
+    const asked = idIn(out(await $.tool.call(add({ type: 'question', title: 'Ship it?', options: ['yes', 'no'] }))))
+    const ui = await $.ui.mount({ ...PANE, surface: 'desktop' })
+    await ui.press({ key: `item-${asked}` })
+    // Choosing an answer leads back to the list.
+    await ui.press({ key: `option-${asked}-0` })
+    await ui.press({ key: 'section-done' })
+    expect((await ui.find({ key: 'section-done' }))?.text).toBe('✓ Erledigt (2) ▾')
+
+    await ui.press({ key: 'archive-done' })
+    expect(w.fs.json(`${DIR}/responses/${closed}.json`)).toMatchObject({ shelf: 'archive', status: 'draft' })
+    expect(w.fs.json(`${DIR}/responses/${asked}.json`)).toMatchObject({ shelf: 'archive', status: 'answered', choice: 'yes' })
+    expect(await ui.find({ key: 'section-done' })).toBeUndefined()
+    expect((await ui.find({ key: 'section-archive' }))?.text).toBe('📦 Archiv (2) ▸')
+    await w.clock.advance(3000)
+    expect(w.prompts.at(-1)).toMatch(`(id ${asked})\nChose "yes".`)
+
+    // Clearing asks first, and only the second press clears.
+    await ui.press({ key: 'section-archive' })
+    await ui.press({ key: 'clear-archive' })
+    expect((await ui.find({ key: 'clear-archive' }))?.text).toBe('Wirklich leeren (2)')
+    expect((await ui.find({ type: 'Text', text: /Zum Bestätigen/ }))?.text).toMatch(/nicht zurückholen/)
+    expect(w.fs.json(`${DIR}/responses/${closed}.json`)).toMatchObject({ shelf: 'archive' })
+    await ui.press({ key: 'clear-archive' })
+    expect(w.fs.json(`${DIR}/responses/${closed}.json`)).toMatchObject({ shelf: 'cleared' })
+    expect(w.fs.json(`${DIR}/responses/${asked}.json`)).toMatchObject({ shelf: 'cleared', choice: 'yes' })
+    expect(await ui.find({ key: 'section-archive' })).toBeUndefined()
+    expect(await ui.find({ key: `item-${asked}` })).toBeUndefined()
+    expect(await ui.find({ type: 'Text', text: /Zum Bestätigen/ })).toBeUndefined()
+    // Nothing more goes to the session.
+    const sent = w.prompts.length
+    await w.clock.advance(3000)
+    expect(w.prompts).toHaveLength(sent)
+    await ui.unmount()
+  })
+
+  test('done can be cleared at once; a press elsewhere drops the pending clear', DE, async ($, on) => {
+    const w = world(on)
+    await $.session.start({ cwd: '/', surface: 'desktop', isInteractive: true })
+    const id = idIn(out(await $.tool.call(add({ type: 'task', title: 'Old task' }))))
+    await $.tool.call({ tool: 'mcp__owner-inbox__resolve', ids: [id] })
+    const ui = await $.ui.mount({ ...PANE, surface: 'desktop' })
+    await ui.press({ key: 'section-done' })
+    await ui.press({ key: 'clear-done' })
+    expect((await ui.find({ key: 'clear-done' }))?.text).toBe('Wirklich leeren (1)')
+    await ui.press({ key: 'section-done' })
+    await ui.press({ key: 'section-done' })
+    expect((await ui.find({ key: 'clear-done' }))?.text).toBe('Erledigt leeren')
+    expect(w.fs.names(`${DIR}/responses`)).toEqual([])
+    await ui.press({ key: 'clear-done' })
+    await ui.press({ key: 'clear-done' })
+    expect(w.fs.json(`${DIR}/responses/${id}.json`)).toMatchObject({ shelf: 'cleared' })
+    expect(await ui.find({ key: 'section-done' })).toBeUndefined()
     await ui.unmount()
   })
 })

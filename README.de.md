@@ -7,11 +7,12 @@ English: [README.md](README.md).
 ## Was du siehst
 
 - **Das Fenster „Für dich“** rechts neben dem Chat, in vier Bereichen:
-  - **● Aktiv** (orange): was auf dich wartet, nach Projekt sortiert. Neue Einträge haben einen kräftigen Rahmen und „● neu“.
-  - **▶ In Arbeit** (blau): woran du gerade sitzt.
-  - **⏸ Später** (gelb): was du bewusst verschoben hast.
-  - **✓ Erledigt** (grün): was du beantwortet hast oder was die Sitzung abgeschlossen hat.
-  Jeder Eintrag ist eine Karte: oben ein Symbol für die Art (💬 Frage, 🧭 Entscheidung, 👍 Freigabe, 👀 Anschauen, 📌 Aufgabe, 🧪 Test), das Projekt und die Uhrzeit, darunter der Titel und welche Sitzung ihn eingetragen hat.
+  - **● Offen** (rot): was auf dich wartet, nach Projekt sortiert. Neue Einträge sind mit „● neu“ markiert.
+  - **▶ In Arbeit:** woran du gerade sitzt.
+  - **⏸ Später:** was du bewusst verschoben hast.
+  - **✓ Erledigt:** was du beantwortet hast oder was die Sitzung abgeschlossen hat.
+  - **📦 Archiv:** was du aus „Erledigt“ weggeräumt hast.
+  Dünne Striche trennen die Bereiche. Jeder Eintrag zeigt links ein Symbol für die Art (💬 Frage, 🧭 Entscheidung, 👍 Freigabe, 👀 Anschauen, 📌 Aufgabe, 🧪 Test), daneben Titel und Uhrzeit, darunter Art, Projekt und welche Sitzung ihn eingetragen hat.
 - **Die Zeile über dem Eingabefeld**, zum Beispiel „Für dich: 2 offen, 1 neu“. Rechts am Rand steht farbig, was du verschoben hast, etwa „(⏸ 1 später)“. Ein Klick darauf öffnet das Fenster.
 - Optional eine **Benachrichtigung**, wenn etwas Neues kommt.
 - Eine **Push-Nachricht aufs Handy**, wenn eine Sitzung mit Remote Control etwas Neues einträgt und du gerade nicht am PC sitzt: eine Zeile mit Projekt, Art und Titel.
@@ -28,9 +29,11 @@ English: [README.md](README.md).
    - **Test:** Markiere jeden Schritt mit „Wie erwartet“ oder „Nicht wie erwartet“. Zu jedem Schritt kannst du eine Notiz schreiben (Enter speichert, „✓ Notiz gespeichert“ zeigt es an). Am Ende „Ergebnis senden“. Fehlt bei einem Schritt noch das Ergebnis, fragt die Inbox einmal nach.
 4. Fertig. Der Eintrag wandert zu „Beantwortet“, und die Sitzung bekommt deine Antwort von selbst.
 
-Noch nicht so weit? Unten im Eintrag steht „Stand“: Schreib auf Wunsch eine Notiz an die Sitzung und tippe auf „▶ In Arbeit“ oder „⏸ Später“. Die Sitzung erfährt es mit deiner Notiz, und der Eintrag wandert in den passenden Bereich. „↺ Wieder aktiv“ holt ihn zurück. Beantworten kannst du ihn aus jedem Bereich.
+Noch nicht so weit? Unten im Eintrag steht „Stand“: Schreib auf Wunsch eine Notiz an die Sitzung und tippe auf „▶ In Arbeit“ oder „⏸ Später“. Die Sitzung erfährt es mit deiner Notiz, und der Eintrag wandert in den passenden Bereich. „↺ Wieder offen“ holt ihn zurück. Beantworten kannst du ihn aus jedem Bereich.
 
 Vertippt? Unter „Erledigt“ kannst du eine Antwort zurücknehmen und neu geben, solange die Sitzung den Eintrag noch nicht geschlossen hat. Einträge, die dich nicht mehr betreffen, kannst du mit „Ausblenden“ wegräumen.
+
+Aufräumen: Klapp „✓ Erledigt“ auf. „Alle archivieren“ verschiebt alles ins „📦 Archiv“. „Erledigt leeren“ und „Archiv leeren“ nehmen die Einträge ganz aus dem Fenster; vorher fragt die Inbox einmal nach. Die Dateien bleiben auf deinem Rechner, und eine Antwort, die noch unterwegs ist, kommt trotzdem bei der Sitzung an.
 
 ## Gut zu wissen
 

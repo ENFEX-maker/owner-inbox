@@ -35,6 +35,13 @@ export type Strings = {
   fresh: string
   back: string
   doneSection: (n: number) => string
+  archiveSection: (n: number) => string
+  archiveAll: string
+  clearAll: string
+  clearArchive: string
+  /** The clear button's label once it waits for the second press. */
+  confirmClear: (n: number) => string
+  clearNotice: string
   from: (label: string) => string
   recommended: string
   ownAnswer: string
