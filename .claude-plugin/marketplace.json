@@ -1,0 +1,14 @@
+{
+  "name": "owner-inbox",
+  "description": "owner-inbox: one inbox for everything your Claude Code sessions need from you.",
+  "owner": {
+    "name": "The owner-inbox contributors"
+  },
+  "plugins": [
+    {
+      "name": "owner-inbox",
+      "source": "./",
+      "description": "One inbox for everything your Claude Code sessions need from you, beside the chat, with answers going back to the session that asked."
+    }
+  ]
+}

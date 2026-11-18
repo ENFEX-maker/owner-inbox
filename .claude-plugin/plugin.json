@@ -1,0 +1,42 @@
+{
+  "name": "owner-inbox",
+  "version": "0.1.0",
+  "description": "One inbox for everything your Claude Code sessions need from you: questions, decisions, approvals, things to look at and test guides. It stays beside the chat until you handle it, and your answer goes back to the session that asked.",
+  "author": { "name": "owner-inbox contributors" },
+  "license": "MIT",
+  "keywords": ["inbox", "human-in-the-loop", "questions", "approvals", "test-guide", "pane"],
+  "types": "./types/index.d.ts",
+  "userConfig": {
+    "language": {
+      "type": "string",
+      "title": "Language",
+      "description": "Language of the inbox pane: auto (follows the system language), de (German) or en (English).",
+      "default": "auto",
+      "options": ["auto", "de", "en"]
+    },
+    "dataDir": {
+      "type": "string",
+      "title": "Data folder",
+      "description": "Folder that holds the inbox items. Empty means .owner-inbox in your home folder.",
+      "default": ""
+    },
+    "notify": {
+      "type": "boolean",
+      "title": "Notifications",
+      "description": "Raise a system notification when a session adds an item.",
+      "default": true
+    },
+    "autoOpen": {
+      "type": "boolean",
+      "title": "Open the pane by itself",
+      "description": "Open the inbox pane beside the chat when open items exist or a new one arrives (only where the pane docks as a sidebar).",
+      "default": true
+    },
+    "pollSeconds": {
+      "type": "number",
+      "title": "Refresh interval",
+      "description": "How often, in seconds, the inbox looks for changes from other sessions (1 to 60).",
+      "default": 3
+    }
+  }
+}
