@@ -165,7 +165,9 @@ describe('a session adds an item', () => {
       // A card: icon, type and project above the title, who filed it below.
       expect((await ui.find({ type: 'Button', text: /Ship it\?/ }))?.text).toBe('Ship it?')
       expect((await ui.find({ type: 'Text', text: /Frage ·/ }))?.text).toBe('Frage · demo · von lead')
-      expect((await ui.find({ type: 'Text', text: '💬' }))?.text).toBe('💬')
+      // A line drawing where SVG is drawn, a plain glyph on the terminal.
+      if (surface === 'terminal') expect((await ui.find({ type: 'Text', text: /^\?$/ }))?.text).toBe('?')
+      else expect(await ui.find({ type: 'Svg' })).toBeDefined()
       expect((await ui.find({ type: 'Text', text: /^● neu$/ }))?.text).toBe('● neu')
       await ui.unmount()
     }
@@ -867,7 +869,7 @@ describe('the archive', () => {
     expect(w.fs.json(`${DIR}/responses/${closed}.json`)).toMatchObject({ shelf: 'archive', status: 'draft' })
     expect(w.fs.json(`${DIR}/responses/${asked}.json`)).toMatchObject({ shelf: 'archive', status: 'answered', choice: 'yes' })
     expect(await ui.find({ key: 'section-done' })).toBeUndefined()
-    expect((await ui.find({ key: 'section-archive' }))?.text).toBe('📦 Archiv (2) ▸')
+    expect((await ui.find({ key: 'section-archive' }))?.text).toBe('▤ Archiv (2) ▸')
     await w.clock.advance(3000)
     expect(w.prompts.at(-1)).toMatch(`(id ${asked})\nChose "yes".`)
 

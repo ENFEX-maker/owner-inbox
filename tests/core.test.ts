@@ -1,6 +1,8 @@
 import { describe, expect, test } from 'claude-code/testing'
+import { ICON_GLYPH, iconSvg } from '../hooks/icons'
 
 import {
+  ITEM_TYPES,
   answerDelivery,
   buildEntries,
   chatCapture,
@@ -455,5 +457,14 @@ describe('what the model reads', () => {
       created: new Date(1000).toISOString(),
       answer: 'Chose "Yes".',
     })
+  })
+})
+
+describe('icons', () => {
+  test('every type has a gray line drawing and a one-character glyph', () => {
+    for (const type of ITEM_TYPES) {
+      expect(iconSvg(type)).toMatch(/^<svg [^>]*fill="none" stroke="#8c8c8c"[^>]*>.*<\/svg>$/)
+      expect(ICON_GLYPH[type]).toHaveLength(1)
+    }
   })
 })

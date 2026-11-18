@@ -11,8 +11,8 @@ English: [README.md](README.md).
   - **▶ In Arbeit:** woran du gerade sitzt.
   - **⏸ Später:** was du bewusst verschoben hast.
   - **✓ Erledigt:** was du beantwortet hast oder was die Sitzung abgeschlossen hat.
-  - **📦 Archiv:** was du aus „Erledigt“ weggeräumt hast.
-  Dünne Striche trennen die Bereiche. Jeder Eintrag zeigt links ein Symbol für die Art (💬 Frage, 🧭 Entscheidung, 👍 Freigabe, 👀 Anschauen, 📌 Aufgabe, 🧪 Test), daneben Titel und Uhrzeit, darunter Art, Projekt und welche Sitzung ihn eingetragen hat.
+  - **▤ Archiv:** was du aus „Erledigt“ weggeräumt hast.
+  Dünne Striche trennen die Bereiche. Jeder Eintrag zeigt links ein schlichtes graues Symbol für die Art (Frage, Entscheidung, Freigabe, Anschauen, Aufgabe, Test), daneben Titel und Uhrzeit, darunter Art, Projekt und welche Sitzung ihn eingetragen hat.
 - **Die Zeile über dem Eingabefeld**, zum Beispiel „Für dich: 2 offen, 1 neu“. Rechts am Rand steht farbig, was du verschoben hast, etwa „(⏸ 1 später)“. Ein Klick darauf öffnet das Fenster.
 - Optional eine **Benachrichtigung**, wenn etwas Neues kommt.
 - Eine **Push-Nachricht aufs Handy**, wenn eine Sitzung mit Remote Control etwas Neues einträgt und du gerade nicht am PC sitzt: eine Zeile mit Projekt, Art und Titel.
@@ -33,7 +33,7 @@ Noch nicht so weit? Unten im Eintrag steht „Stand“: Schreib auf Wunsch eine 
 
 Vertippt? Unter „Erledigt“ kannst du eine Antwort zurücknehmen und neu geben, solange die Sitzung den Eintrag noch nicht geschlossen hat. Einträge, die dich nicht mehr betreffen, kannst du mit „Ausblenden“ wegräumen.
 
-Aufräumen: Klapp „✓ Erledigt“ auf. „Alle archivieren“ verschiebt alles ins „📦 Archiv“. „Erledigt leeren“ und „Archiv leeren“ nehmen die Einträge ganz aus dem Fenster; vorher fragt die Inbox einmal nach. Die Dateien bleiben auf deinem Rechner, und eine Antwort, die noch unterwegs ist, kommt trotzdem bei der Sitzung an.
+Aufräumen: Klapp „✓ Erledigt“ auf. „Alle archivieren“ verschiebt alles ins „▤ Archiv“. „Erledigt leeren“ und „Archiv leeren“ nehmen die Einträge ganz aus dem Fenster; vorher fragt die Inbox einmal nach. Die Dateien bleiben auf deinem Rechner, und eine Antwort, die noch unterwegs ist, kommt trotzdem bei der Sitzung an.
 
 ## Gut zu wissen
 

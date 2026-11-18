@@ -1198,6 +1198,11 @@ export const register: Register = (on, options) => {
   on('ui.render', { component: 'Pane', requestId: PANE }, async ($, e) => {
     if (e.viewport?.isFullscreen !== undefined) mem.docks.set(e.surface, e.viewport.isFullscreen)
 
-    return renderPane($.ui.resolve(e), await paneModel($), actions($), config.s)
+    return renderPane(
+      $.ui.resolve(e),
+      { ...(await paneModel($)), drawsSvg: e.surface !== 'terminal' },
+      actions($),
+      config.s,
+    )
   })
 }

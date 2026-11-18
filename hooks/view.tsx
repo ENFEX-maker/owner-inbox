@@ -4,10 +4,11 @@
 import type { Entry, Item, ItemType, Phase, Response, Sections, Shelf, StepResult } from '../types'
 import { counts, groupByProject, isPending } from './core'
 import { formatTime, type Strings } from './i18n'
+import { ICON_GLYPH, iconSvg } from './icons'
 
 /** The elements a surface's table holds that the pane uses. */
 // biome-ignore lint/suspicious/noExplicitAny: each surface's table has its own constructor types
-export type Elements = { Box: any; Text: any; Button: any; Input: any; Markdown: any }
+export type Elements = { Box: any; Text: any; Button: any; Input: any; Markdown: any; Svg?: any }
 
 export type Actions = {
   select: (id: string | null) => void
@@ -38,6 +39,8 @@ export type PaneModel = {
   confirming: string | null
   /** The part whose clearing waits for a second press. */
   confirmingClear: 'done' | 'archive' | null
+  /** Whether the surface draws SVG; the terminal draws an empty box in its place. */
+  drawsSvg: boolean
 }
 
 /** The key a draft is kept under: the item, or one step of a test. */
@@ -63,18 +66,17 @@ const SYMBOL: Record<Part, string> = {
   progress: '▶',
   later: '⏸',
   done: '✓',
-  archive: '📦',
+  archive: '▤',
 }
 
 const OPEN_COLOR = 'error'
 
-const TYPE_ICON: Record<ItemType, string> = {
-  question: '💬',
-  decision: '🧭',
-  approval: '👍',
-  review: '👀',
-  task: '📌',
-  test: '🧪',
+/** A type's icon: a line drawing where the surface draws SVG, a glyph on the terminal. */
+function icon(el: Elements, type: ItemType, model: PaneModel, s: Strings) {
+  const { Svg, Text } = el
+  if (!model.drawsSvg || Svg === undefined) return <Text dimColor>{ICON_GLYPH[type]}</Text>
+
+  return <Svg source={iconSvg(type)} alt={s.type[type]} width={16} height={16} />
 }
 
 const isFinished = (entry: Entry) => entry.status === 'answered' || entry.status === 'done'
@@ -112,7 +114,7 @@ function row(el: Elements, entry: Entry, model: PaneModel, a: Actions, s: String
 
   return (
     <Box key={`card-${item.id}`} flexDirection="row" gap="md">
-      <Text>{TYPE_ICON[item.type]}</Text>
+      {icon(el, item.type, model, s)}
       <Box flexDirection="column" flexGrow={1} flexShrink={1} gap="xs">
         <Box flexDirection="row" justifyContent="space-between" gap="sm">
           <Button key={`item-${item.id}`} plain onPress={() => a.select(item.id)}>
@@ -247,9 +249,12 @@ function detail(el: Elements, entry: Entry, model: PaneModel, a: Actions, s: Str
     <Box flexDirection="column" gap="lg" paddingX="sm" paddingY="md">
       <Button key="back" plain label={s.back} onPress={() => a.select(null)} />
       <Box key={`head-${item.id}`} flexDirection="column" gap="sm">
-        <Text size="footnote" dimColor>
-          {TYPE_ICON[item.type]} {s.type[item.type]} · {item.project}
-        </Text>
+        <Box flexDirection="row" gap="sm" alignItems="center">
+          {icon(el, item.type, model, s)}
+          <Text size="footnote" dimColor>
+            {s.type[item.type]} · {item.project}
+          </Text>
+        </Box>
         <Text size="title" weight="bold">
           {item.title}
         </Text>
