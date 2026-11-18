@@ -35,7 +35,8 @@ All times are milliseconds since the Unix epoch. Every file carries `"v": 1`.
 - `type`: `question`, `decision`, `approval`, `review`, `task` or `test`.
 - `options` and `recommended`: `question` and `decision` only.
 - `steps`: `test` only, `[{ "id": "1", "text": "...", "expect": "..." }]`; `expect` is optional.
-- `closed`: absent while the item is active; `reason` is `done` or `withdrawn`; `by` is the session that closed it.
+- `closed`: absent while the item is active; `reason` is `done`, `withdrawn`, or `chat` for a captured item the owner answered in the chat; `by` is the session that closed it.
+- `captured`: `true` on an item the inbox took from a session's closing chat message, because it asked the owner something there and added nothing itself.
 
 ## responses/&lt;id&gt;.json
 

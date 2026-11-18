@@ -63,6 +63,8 @@ export const es: Strings = {
   delivered: 'La sesión lo ha recibido.',
   closed: 'Hecho.',
   withdrawn: 'Retirado por la sesión.',
+  answeredInChat: 'Respondido en el chat.',
+  captured: 'tomado del chat',
   undo: 'Retirar la respuesta',
   archive: 'Ocultar',
   secretWarning: 'Parece una contraseña o una clave. No se ha enviado: algo así no debe ir en la bandeja.',

@@ -2,9 +2,18 @@
   "name": "owner-inbox",
   "version": "0.1.0",
   "description": "One inbox for everything your Claude Code sessions need from you: questions, decisions, approvals, things to look at and test guides. It stays beside the chat until you handle it, and your answer goes back to the session that asked.",
-  "author": { "name": "owner-inbox contributors" },
+  "author": {
+    "name": "owner-inbox contributors"
+  },
   "license": "MIT",
-  "keywords": ["inbox", "human-in-the-loop", "questions", "approvals", "test-guide", "pane"],
+  "keywords": [
+    "inbox",
+    "human-in-the-loop",
+    "questions",
+    "approvals",
+    "test-guide",
+    "pane"
+  ],
   "types": "./types/index.d.ts",
   "userConfig": {
     "language": {
@@ -12,7 +21,20 @@
       "title": "Language",
       "description": "Language of the inbox pane: auto follows the system language (English where the pane does not speak it), or one of de, en, es, fr, it, ja, ko, nl, pl, pt, zh.",
       "default": "auto",
-      "options": ["auto", "de", "en", "es", "fr", "it", "ja", "ko", "nl", "pl", "pt", "zh"]
+      "options": [
+        "auto",
+        "de",
+        "en",
+        "es",
+        "fr",
+        "it",
+        "ja",
+        "ko",
+        "nl",
+        "pl",
+        "pt",
+        "zh"
+      ]
     },
     "dataDir": {
       "type": "string",
@@ -30,6 +52,12 @@
       "type": "boolean",
       "title": "Open the pane by itself",
       "description": "Open the inbox pane beside the chat when open items exist or a new one arrives (only where the pane docks as a sidebar).",
+      "default": true
+    },
+    "captureChat": {
+      "type": "boolean",
+      "title": "Catch questions from the chat",
+      "description": "When a session ends its turn asking you something in chat and put nothing into the inbox, take the question into the inbox. It closes again when you answer in that chat.",
       "default": true
     },
     "pollSeconds": {

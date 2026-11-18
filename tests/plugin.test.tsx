@@ -40,6 +40,8 @@ type World = {
   humanDrop: string | undefined
   /** Starts a new conversation in the same process, as /clear does. */
   clear: (sessionId: string) => void
+  /** What draws the session: none for a script's `claude -p`. */
+  surfaces: ('desktop' | 'mobile')[]
 }
 
 /** Everything beneath the plugin: one session, a folder in memory, a clock. */
@@ -56,6 +58,7 @@ function world(on: On, sessionId = 'S1', fs = new MemFs()): World {
     logs: [],
     drop: undefined,
     humanDrop: undefined,
+    surfaces: ['desktop'],
     clear: next => {
       current = next
     },
@@ -65,7 +68,9 @@ function world(on: On, sessionId = 'S1', fs = new MemFs()): World {
   on('session.id', () => ({ value: current }))
   on('session.root', () => ({ value: 'C:/work/demo' }))
   on('session.repo', () => ({ value: null }))
-  on('session.surfaces', () => ({ value: ['desktop'] as const }))
+  on('session.surfaces', () => ({ value: [...w.surfaces] }))
+  on('turn.start', (_, e) => ({ turnId: e.turnId }))
+  on('turn.complete', (_, e) => ({ text: e.answer }))
   on('tool.register', (_, e) => ({ value: { tool: `mcp__owner-inbox__${e.name}` } }))
   on('command.register', (_, e) => ({ value: { command: e.name } }))
   on('fs.read', async (_, e) => ({ value: await fs.read(e.path) }))
@@ -537,6 +542,109 @@ describe('in progress, later, done', () => {
     expect(w.prompts.at(-1)).toMatch(`(id ${id})\nDone.`)
     expect((await ui.find({ key: 'section-done' }))?.text).toBe('▸ Erledigt (1)')
     await ui.unmount()
+  })
+})
+
+describe('the safety net for questions asked in chat alone', () => {
+  const ASK = 'The build is green.\n\nShall I push it to GitHub now?'
+
+  async function endTurn(
+    $: { turn: { start: (e: never) => Promise<unknown>; complete: (e: never) => Promise<unknown> } },
+    answer: string,
+    over: Record<string, unknown> = {},
+  ): Promise<void> {
+    await $.turn.start({ text: 'go on', turnId: 't1' } as never)
+    await $.turn.complete({
+      answer,
+      reason: 'answer',
+      isAborted: false,
+      durationMs: 1000,
+      turnId: 't1',
+      ...over,
+    } as never)
+  }
+
+  test('a turn that ends asking in chat, with nothing added, lands in the inbox', DE, async ($, on) => {
+    const w = world(on)
+    await $.session.start({ cwd: '/', surface: 'desktop', isInteractive: true })
+    await endTurn($ as never, ASK)
+    const [name] = w.fs.names(`${DIR}/items`)
+    const id = name?.replace('.json', '') ?? ''
+    expect(w.fs.json(`${DIR}/items/${id}.json`)).toMatchObject({
+      type: 'question',
+      title: 'Shall I push it to GitHub now?',
+      body: ASK,
+      captured: true,
+      source: { sessionId: 'S1' },
+    })
+    expect(w.notes).toEqual(['Frage: Shall I push it to GitHub now?'])
+    const ui = await $.ui.mount({ ...PANE, surface: 'desktop' })
+    expect((await ui.find({ type: 'Button', text: /push it/ }))?.text).toMatch(/aus dem Chat übernommen/)
+    await ui.unmount()
+
+    w.fs.put(
+      `${DIR}/responses/${id}.json`,
+      JSON.stringify({ v: 1, id, status: 'answered', text: 'yes, push', updatedAt: START, answeredAt: START }),
+    )
+    await w.clock.advance(3000)
+    expect(w.prompts.at(-1)).toMatch(`(id ${id}, taken from your chat message)\nAnswered: "yes, push"`)
+  })
+
+  test('nothing is taken when the turn added an item itself, asked nothing, or was cut short', DE, async ($, on) => {
+    const w = world(on)
+    await $.session.start({ cwd: '/', surface: 'desktop', isInteractive: true })
+    await $.turn.start({ text: 'go on', turnId: 't1' } as never)
+    await $.tool.call(add({ type: 'question', title: 'Push now?' }))
+    await $.turn.complete({ answer: ASK, reason: 'answer', isAborted: false, durationMs: 1, turnId: 't1' } as never)
+    expect(w.fs.names(`${DIR}/items`)).toHaveLength(1)
+
+    await endTurn($ as never, 'All done. The tests pass.')
+    await endTurn($ as never, ASK, { reason: 'aborted', isAborted: true })
+    await endTurn($ as never, '```js\nif (ready?) go()\n```\n\nSee https://example.com/?q=1 for details.')
+    expect(w.fs.names(`${DIR}/items`)).toHaveLength(1)
+
+    // A script's run has no one to ask.
+    w.surfaces = []
+    await endTurn($ as never, ASK)
+    expect(w.fs.names(`${DIR}/items`)).toHaveLength(1)
+  })
+
+  test('answering in the chat closes what was taken from it; what the owner filed stays', DE, async ($, on) => {
+    const w = world(on)
+    await $.session.start({ cwd: '/', surface: 'desktop', isInteractive: true })
+    await endTurn($ as never, ASK)
+    const kept = idIn(out(await $.tool.call(add({ type: 'task', title: 'Plug in the mic' }))))
+    await endTurn($ as never, 'One more thing: should the docs mention it?')
+    const captured = w.fs
+      .names(`${DIR}/items`)
+      .map(name => name.replace('.json', ''))
+      .filter(id => id !== kept)
+    expect(captured).toHaveLength(2)
+    const [first, second] = captured as [string, string]
+    // The owner put the second one off for later in the pane.
+    w.fs.put(
+      `${DIR}/responses/${second}.json`,
+      JSON.stringify({ v: 1, id: second, status: 'draft', phase: 'later', phaseAt: START, updatedAt: START }),
+    )
+    await w.clock.advance(3000)
+
+    await $.prompt.submit({ text: 'Yes, push it.' } as never)
+    expect(w.fs.json(`${DIR}/items/${first}.json`)).toMatchObject({ closed: { reason: 'chat', by: 'S1' } })
+    expect(w.fs.json(`${DIR}/items/${second}.json`)).not.toHaveProperty('closed')
+    expect(w.fs.json(`${DIR}/items/${kept}.json`)).not.toHaveProperty('closed')
+
+    const ui = await $.ui.mount({ ...PANE, surface: 'desktop' })
+    await ui.press({ key: 'section-done' })
+    await ui.press({ key: `item-${first}` })
+    expect((await ui.find({ type: 'Text', text: /Chat beantwortet/ }))?.text).toBe('Im Chat beantwortet.')
+    await ui.unmount()
+  })
+
+  test('it can be switched off', { options: { language: 'de', captureChat: false } }, async ($, on) => {
+    const w = world(on)
+    await $.session.start({ cwd: '/', surface: 'desktop', isInteractive: true })
+    await endTurn($ as never, ASK)
+    expect(w.fs.names(`${DIR}/items`)).toEqual([])
   })
 })
 

@@ -37,6 +37,7 @@ Vertippt? Unter „Erledigt“ kannst du eine Antwort zurücknehmen und neu gebe
 - Passwörter, Schlüssel und Zugangsdaten gehören nicht hinein. Sieht etwas danach aus, wird es nicht angenommen.
 - Antworten gibst nur du: Sitzungen dürfen den Ordner der Inbox nicht selbst beschreiben, damit sich keine Sitzung ihre eigene Freigabe ausstellen kann.
 - Nimmst du eine Antwort zurück oder blendest einen offenen Eintrag aus, erfährt die Sitzung das auch.
+- **Auffangnetz:** Stellt eine Sitzung dir am Ende ihrer Antwort eine Frage nur im Chat, ohne sie in die Inbox zu legen, übernimmt die Inbox die Frage selbst, markiert mit „aus dem Chat übernommen“. Antwortest du lieber direkt im Chat, schließt deine nächste Nachricht dort den Eintrag wieder. Ausschalten geht in den Optionen (`captureChat`).
 - Die Sprache richtet sich nach deinem System. Es gibt elf Sprachen, darunter Deutsch und Englisch. Fest einstellen geht in den Optionen der Erweiterung (`language`, zum Beispiel `de`).
 - Auf dem Handy (Claude-App mit Remote Control) erscheint das Fenster im Bereich „Mods“. Dort gibt es nur Knöpfe, noch keine Textfelder.
 

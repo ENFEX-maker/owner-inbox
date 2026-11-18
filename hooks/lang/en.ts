@@ -60,6 +60,8 @@ export const en: Strings = {
   delivered: 'Received by the session.',
   closed: 'Done.',
   withdrawn: 'Withdrawn by the session.',
+  answeredInChat: 'Answered in the chat.',
+  captured: 'taken from the chat',
   undo: 'Take answer back',
   archive: 'Put away',
   secretWarning: 'That looks like a password or key. Not sent: such things do not belong in the inbox.',

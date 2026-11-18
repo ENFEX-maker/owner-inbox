@@ -6,13 +6,15 @@
 import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Register } from 'claude-code'
 
-import type { Delivery, Entry, Phase, Receipt, Response, Sections, Snapshot, StepResult } from '../types'
+import type { Delivery, Entry, Item, Phase, Receipt, Response, Sections, Snapshot, StepResult } from '../types'
 import {
+  type AddInput,
   ID_RE,
   LIMITS,
   TOOL_PREFIX,
   answerDelivery,
   buildEntries,
+  chatCapture,
   counts,
   deliveryText,
   dueDeliveries,
@@ -48,7 +50,7 @@ const sections = atom({ plugin: 'owner-inbox', key: 'sections' } as const, {
 const notice = atom({ plugin: 'owner-inbox', key: 'notice' } as const, null as string | null)
 
 const GUIDE = `# Owner inbox
-Anything you need from the owner goes into the owner inbox with ${TOOL_PREFIX}add: a question, a decision, an approval, something to look at, a task only they can do, or a test guide for them to run. Long autonomous work scrolls chat messages out of sight; the inbox keeps each item beside the chat until the owner handles it, and shows which session it came from. Add it the moment the need comes up, even while busy, and mention it in chat as usual. Adding returns at once and never waits for the owner: keep working on whatever does not depend on the answer. Put everything needed to answer into the item itself (context, your recommendation, links), since the owner may read it hours later. The owner may also mark an item as in progress or put it off for later; a short message tells you, and the item stays open. When the owner answers, a message from the owner-inbox plugin arrives in this session; ${TOOL_PREFIX}answers fetches answers on demand. Close items you have acted on or no longer need with ${TOOL_PREFIX}resolve. Never put secrets (keys, tokens, passwords) into the inbox.`
+Anything you need from the owner goes into the owner inbox with ${TOOL_PREFIX}add: a question, a decision, an approval, something to look at, a task only they can do, or a test guide for them to run. Long autonomous work scrolls chat messages out of sight; the inbox keeps each item beside the chat until the owner handles it, and shows which session it came from. Add it the moment the need comes up, even while busy, and mention it in chat as usual. Adding returns at once and never waits for the owner: keep working on whatever does not depend on the answer. Put everything needed to answer into the item itself (context, your recommendation, links), since the owner may read it hours later. The owner may also mark an item as in progress or put it off for later; a short message tells you, and the item stays open. If you end a turn asking the owner something in chat without adding it, the inbox takes the question from your message itself; adding it yourself gives it a proper title, options and context. When the owner answers, a message from the owner-inbox plugin arrives in this session; ${TOOL_PREFIX}answers fetches answers on demand. Close items you have acted on or no longer need with ${TOOL_PREFIX}resolve. Never put secrets (keys, tokens, passwords) into the inbox.`
 
 const STEP_SCHEMA = {
   anyOf: [
@@ -190,6 +192,7 @@ type Config = {
   s: Strings
   autoOpen: boolean
   notify: boolean
+  captureChat: boolean
   pollMs: number
   dataDir: string
 }
@@ -209,6 +212,7 @@ function configOf(options: Readonly<Record<string, unknown>>): Config {
     s: strings(options.language, systemLocale()),
     autoOpen: options.autoOpen !== false,
     notify: options.notify !== false,
+    captureChat: options.captureChat !== false,
     pollMs:
       Number.isFinite(pollSeconds) && pollSeconds >= 1 && pollSeconds <= 60 ? pollSeconds * 1000 : 3000,
     dataDir: typeof options.dataDir === 'string' ? options.dataDir.trim() : '',
@@ -238,6 +242,8 @@ type Memory = {
   lastDrop: string | undefined
   /** The test whose send waits for a second press. */
   confirmSend: string | null
+  /** Whether the running turn put anything into the inbox itself. */
+  addedInTurn: boolean
   drafts: Map<string, string>
   docks: Map<string, boolean>
   /** The owner's pane changes, one after the other. */
@@ -261,6 +267,7 @@ function freshMemory(): Memory {
     dueCount: 0,
     lastDrop: undefined,
     confirmSend: null,
+    addedInTurn: false,
     drafts: new Map(),
     docks: new Map(),
     writes: Promise.resolve(),
@@ -732,18 +739,18 @@ async function startSession($: $): Promise<void> {
   })
 }
 
-async function addItem($: $, raw: Record<string, unknown>): Promise<string> {
-  const parsed = parseAdd(raw)
-  if (!parsed.ok) throw new InboxError(parsed.error)
+/** Writes a new item of this session's and tells the owner. */
+async function putItem($: $, input: AddInput, captured: boolean): Promise<Item> {
   const inbox = await store($)
   const now = await $.clock.now()
-  const item = makeItem(parsed.value, {
+  const made = makeItem(input, {
     id: newId(now, random),
     now,
     sessionId: await currentSession($),
     ...(mem.root === undefined ? {} : { root: mem.root }),
     defaultProject: mem.defaultProject,
   })
+  const item: Item = captured ? { ...made, captured: true } : made
   await inbox.writeItem(item)
   if (config.notify) {
     void $.ui
@@ -752,10 +759,55 @@ async function addItem($: $, raw: Record<string, unknown>): Promise<string> {
   }
   await refresh($).catch(() => undefined)
 
+  return item
+}
+
+async function addItem($: $, raw: Record<string, unknown>): Promise<string> {
+  const parsed = parseAdd(raw)
+  if (!parsed.ok) throw new InboxError(parsed.error)
+  mem.addedInTurn = true
+  const item = await putItem($, parsed.value, false)
+
   return `Added to the owner inbox as ${item.id} (${item.type}, project ${item.project}). It stays beside the chat until the owner handles it. Keep working on what does not depend on it; the answer will arrive here as a message from the owner-inbox plugin.`
 }
 
 class InboxError extends Error {}
+
+// ---- The safety net: questions asked in chat alone -------------------------
+//
+// A session told to use the inbox still asks in chat now and then. When a turn
+// ends with a message that asks the owner something and the turn put nothing
+// into the inbox, the inbox takes the question itself. If the owner answers
+// in the chat instead, the next prompt they type closes it again.
+
+async function captureChat($: $, message: string): Promise<void> {
+  if (!config.captureChat || mem.addedInTurn) return
+  // Nobody to ask where nothing draws (a script's `claude -p`).
+  if ((await $.session.surfaces()).length === 0) return
+  const input = chatCapture(message)
+  if (input !== undefined) await putItem($, input, true)
+}
+
+async function closeCaptured($: $): Promise<void> {
+  const inbox = mem.inbox
+  const sessionId = mem.sessionId
+  if (inbox === undefined || sessionId === undefined) return
+  const { items, responses } = inbox.contents()
+  const waiting = items.filter(
+    item =>
+      item.captured === true &&
+      item.source.sessionId === sessionId &&
+      statusOf(item, responses.get(item.id)) === 'open',
+  )
+  if (waiting.length === 0) return
+  const now = await $.clock.now()
+  for (const item of waiting) {
+    const fresh = await inbox.readItem(item.id)
+    if (fresh === undefined || fresh.closed !== undefined) continue
+    await inbox.writeItem({ ...fresh, closed: { at: now, reason: 'chat', by: sessionId } })
+  }
+  await refresh($).catch(() => undefined)
+}
 
 function inScope(entry: Entry, scope: unknown): boolean {
   if (scope === 'all') return true
@@ -971,6 +1023,10 @@ export const register: Register = (on, options) => {
     const origin = e.origin as { kind: string; name?: string } | undefined
     const isOwn = origin?.kind === 'plugin' && origin.name === PLUGIN
     if (isOwn || e.command !== undefined) return next(e)
+    // The owner writes in the chat: what was taken from it is answered there.
+    if (origin === undefined || origin.kind === 'human' || origin.kind === 'composer') {
+      await closeCaptured($).catch(() => undefined)
+    }
     const due = handOver()
     if (due === undefined) return next(e)
     const entered = await next({ ...e, context: [...(e.context ?? []), deliveryText(due)] })
@@ -979,6 +1035,21 @@ export const register: Register = (on, options) => {
 
     return entered
   }).catch(($, e, next) => next(e))
+
+  on('turn.start', ($, e, next) => {
+    if (e.agentId === undefined) mem.addedInTurn = false
+
+    return next(e)
+  })
+
+  on('turn.complete', async ($, e, next) => {
+    const done = await next(e)
+    if (e.agentId === undefined && e.reason === 'answer' && !e.isAborted) {
+      await captureChat($, e.answer).catch(() => undefined)
+    }
+
+    return done
+  })
 
   on('tool.call', { tool: 'mcp__owner-inbox__add' }, ($, e) => answerTool(addItem($, argsOf(e))))
   on('tool.call', { tool: 'mcp__owner-inbox__answers' }, ($, e) => answerTool(answersFor($, argsOf(e))))

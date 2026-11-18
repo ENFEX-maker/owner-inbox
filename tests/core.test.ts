@@ -3,6 +3,8 @@ import { describe, expect, test } from 'claude-code/testing'
 import {
   answerDelivery,
   buildEntries,
+  chatCapture,
+  chatQuestions,
   counts,
   deliveryText,
   describeAnswer,
@@ -215,6 +217,61 @@ describe('ids and projects', () => {
     expect(isItem(made, ID)).toBe(true)
     expect(isItem({ ...made, id: '../evil' })).toBe(false)
     expect(isItem(made, '20261118-101500-000000')).toBe(false)
+  })
+})
+
+describe('questions in a chat message', () => {
+  test('finds the questions that close a message', () => {
+    expect(chatQuestions('Done.\n\nShould I push it now? Or wait for the review?')).toEqual([
+      ['Should I push it now?', 'Or wait for the review?'],
+    ])
+    const listed = [
+      'All set.',
+      '',
+      '**Für dich, offen:**',
+      '1. Passt dir der Projektordner, oder lieber woanders?',
+      '2. Ist der Name „Owner Inbox“ okay?',
+    ].join('\n')
+    expect(chatQuestions(listed)).toEqual([
+      ['Passt dir der Projektordner, oder lieber woanders?', 'Ist der Name „Owner Inbox“ okay?'],
+    ])
+    expect(chatQuestions('終わりました。\n\n今すぐ公開しますか？')).toEqual([['今すぐ公開しますか？']])
+  })
+
+  test('leaves out code, quotes, links, headings and questions far up', () => {
+    const quiet = [
+      '## Why did it fail?',
+      '',
+      '> Can we trust the cache?',
+      '',
+      '```ts',
+      'const ok = ready ? go() : stop()',
+      'if (x?.y) {}',
+      '```',
+      '',
+      'See `a?b` and https://example.com/path?query=1 for more.',
+      '',
+      '**Was ist neu?**',
+      '',
+      'Fixed it.',
+    ].join('\n')
+    expect(chatQuestions(quiet)).toEqual([])
+    const farUp = ['Is this the first question?', 'Block two.', 'Block three.', 'Block four.', 'Done.'].join('\n\n')
+    expect(chatQuestions(farUp)).toEqual([])
+    expect(chatQuestions('Why?')).toEqual([])
+  })
+
+  test('the captured item: the last block\'s first question as title, the message as body', () => {
+    const message = 'Is the first draft fine?\n\nNext steps.\n\nShall I publish it? And tag it?'
+    expect(chatCapture(message)).toEqual({
+      type: 'question',
+      title: 'Shall I publish it? (+2)',
+      body: message,
+      allowText: true,
+    })
+    expect(chatCapture('All done.')).toBeUndefined()
+    expect(chatCapture(`Use ghp_${'a'.repeat(36)} for it?`)).toBeUndefined()
+    expect(chatCapture(`${'x'.repeat(300)}?`)?.title).toHaveLength(200)
   })
 })
 

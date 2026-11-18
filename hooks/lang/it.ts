@@ -63,6 +63,8 @@ export const it: Strings = {
   delivered: 'Ricevuto dalla sessione.',
   closed: 'Fatto.',
   withdrawn: 'Ritirato dalla sessione.',
+  answeredInChat: 'Risposto nella chat.',
+  captured: 'ripreso dalla chat',
   undo: 'Ritira la risposta',
   archive: 'Nascondi',
   secretWarning: 'Sembra una password o una chiave. Non inviato: cose del genere non vanno nella casella.',

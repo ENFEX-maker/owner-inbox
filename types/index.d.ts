@@ -31,7 +31,13 @@ export type Item = {
   project: string
   source: Source
   createdAt: number
-  closed?: { at: number; reason: 'done' | 'withdrawn'; note?: string; by?: string }
+  /**
+   * Taken from a chat message the session ended its turn with, because it
+   * asked the owner something there and put nothing into the inbox.
+   */
+  captured?: true
+  /** `chat`: a captured item the owner answered in the chat instead. */
+  closed?: { at: number; reason: 'done' | 'withdrawn' | 'chat'; note?: string; by?: string }
 }
 
 /** One step's outcome in a test guide. */

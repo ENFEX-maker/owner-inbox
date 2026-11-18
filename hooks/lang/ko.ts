@@ -57,6 +57,8 @@ export const ko: Strings = {
   delivered: '세션이 받았습니다.',
   closed: '완료되었습니다.',
   withdrawn: '세션이 철회했습니다.',
+  answeredInChat: '채팅에서 답변함.',
+  captured: '채팅에서 가져옴',
   undo: '답변 취소',
   archive: '숨기기',
   secretWarning: '비밀번호나 키처럼 보입니다. 보내지 않았습니다. 이런 정보는 받은편지함에 넣지 마세요.',

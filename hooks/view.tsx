@@ -61,6 +61,7 @@ export function renderPane(el: Elements, model: PaneModel, a: Actions, s: String
 function meta(entry: Entry, now: number, s: Strings): string {
   const parts = [
     ...(entry.item.source.label === undefined ? [] : [s.from(entry.item.source.label)]),
+    ...(entry.item.captured === true ? [s.captured] : []),
     formatTime(entry.item.createdAt, now, s),
   ]
 
@@ -412,7 +413,9 @@ function outcome(el: Elements, entry: Entry, a: Actions, s: Strings) {
     item.closed !== undefined
       ? item.closed.reason === 'withdrawn'
         ? s.withdrawn
-        : s.closed
+        : item.closed.reason === 'chat'
+          ? s.answeredInChat
+          : s.closed
       : entry.delivered
         ? s.delivered
         : s.waiting

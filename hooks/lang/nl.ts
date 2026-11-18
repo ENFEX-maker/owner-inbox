@@ -59,6 +59,8 @@ export const nl: Strings = {
   delivered: 'Ontvangen door de sessie.',
   closed: 'Klaar.',
   withdrawn: 'Ingetrokken door de sessie.',
+  answeredInChat: 'Beantwoord in de chat.',
+  captured: 'uit de chat overgenomen',
   undo: 'Antwoord intrekken',
   archive: 'Verbergen',
   secretWarning: 'Dit lijkt op een wachtwoord of sleutel. Niet verstuurd: zoiets hoort niet in de inbox.',

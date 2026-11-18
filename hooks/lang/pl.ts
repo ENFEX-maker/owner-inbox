@@ -61,6 +61,8 @@ export const pl: Strings = {
   delivered: 'Sesja to otrzymała.',
   closed: 'Zrobione.',
   withdrawn: 'Wycofane przez sesję.',
+  answeredInChat: 'Odpowiedziano na czacie.',
+  captured: 'przeniesione z czatu',
   undo: 'Cofnij odpowiedź',
   archive: 'Ukryj',
   secretWarning: 'To wygląda na hasło lub klucz. Nie wysłano: takie rzeczy nie powinny trafiać do skrzynki.',

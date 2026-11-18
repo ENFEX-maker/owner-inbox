@@ -57,6 +57,8 @@ export const zh: Strings = {
   delivered: '会话已收到。',
   closed: '已完成。',
   withdrawn: '会话已撤回。',
+  answeredInChat: '已在聊天中回答。',
+  captured: '取自聊天',
   undo: '撤回回答',
   archive: '隐藏',
   secretWarning: '这看起来像密码或密钥。未发送：此类内容不应放进收件箱。',

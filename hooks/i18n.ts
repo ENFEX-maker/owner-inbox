@@ -59,6 +59,10 @@ export type Strings = {
   delivered: string
   closed: string
   withdrawn: string
+  /** The state of a captured item the owner answered in the chat. */
+  answeredInChat: string
+  /** Marks an item taken from a session's chat message. */
+  captured: string
   undo: string
   archive: string
   secretWarning: string

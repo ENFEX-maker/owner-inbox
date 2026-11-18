@@ -230,6 +230,69 @@ export function parseAdd(raw: Record<string, unknown>): Parsed<AddInput> {
   }
 }
 
+function clip(text: string, max: number): string {
+  return text.length > max ? `${text.slice(0, max - 1)}…` : text
+}
+
+// How many of a message's last blocks are searched for a question: one asked
+// of the owner closes a message; one further up is mostly rhetorical.
+const TAIL_BLOCKS = 3
+
+/**
+ * The questions in the closing blocks of a chat message, block by block: prose
+ * sentences ending in a question mark, leaving out code, quotes, links and
+ * headings, where question marks ask nothing of anyone.
+ */
+export function chatQuestions(message: string): string[][] {
+  const prose = message
+    .replace(/```[\s\S]*?```/g, '\n\n')
+    .replace(/`[^`\n]*`/g, ' ')
+    .replace(/https?:\/\/\S+/g, ' ')
+  const blocks = prose
+    .split(/\n\s*\n/)
+    .map(block =>
+      block
+        .split('\n')
+        .filter(line => !/^\s*(?:>|#|\*\*[^*]+\*\*:?\s*$)/.test(line))
+        .join('\n'),
+    )
+    .filter(block => block.trim() !== '')
+  const groups: string[][] = []
+  for (const block of blocks.slice(-TAIL_BLOCKS)) {
+    const found: string[] = []
+    for (const line of block.split('\n')) {
+      for (const raw of line.split(/(?<=[.!?。！？])\s+/)) {
+        const sentence = oneLine(
+          raw.replace(/^\s*(?:[-*+]\s+|\d+[.)]\s+)/, '').replace(/[*_~]+/g, ''),
+        )
+        if (sentence.length >= 8 && /[?？]["'»”」)\]]*$/.test(sentence)) found.push(sentence)
+      }
+    }
+    if (found.length > 0) groups.push(found)
+  }
+
+  return groups
+}
+
+/**
+ * The item a chat message that asks the owner something becomes; undefined
+ * when it asks nothing, or holds what looks like a secret.
+ */
+export function chatCapture(message: string): AddInput | undefined {
+  const groups = chatQuestions(message)
+  const last = groups.at(-1)
+  const first = last?.[0]
+  if (first === undefined || findSecret(message) !== undefined) return undefined
+  const total = groups.flat().length
+
+  return {
+    type: 'question',
+    title: clip(total > 1 ? `${first} (+${total - 1})` : first, LIMITS.title),
+    body: clip(clean(message), LIMITS.body),
+    allowText: true,
+  }
+}
+
 /** A sortable id from the time and six random hex digits. */
 export function newId(now: number, random: () => number): string {
   const d = new Date(now)
@@ -301,6 +364,7 @@ export function isItem(x: unknown, id?: string): x is Item {
     if (!x.steps.every(s => isRecord(s) && isString(s.id) && isString(s.text))) return false
   }
   if (x.closed !== undefined && !(isRecord(x.closed) && isNumber(x.closed.at))) return false
+  if (x.captured !== undefined && x.captured !== true) return false
 
   return typeof x.allowText === 'boolean'
 }
@@ -547,8 +611,9 @@ function news(delivery: Delivery): string {
 export function deliveryText(deliveries: readonly Delivery[]): string {
   const parts = deliveries.map(delivery => {
     const { item } = delivery.entry
+    const origin = item.captured === true ? ', taken from your chat message' : ''
 
-    return `[${item.type}] ${quote(item.title)} (id ${item.id})\n${news(delivery)}`
+    return `[${item.type}] ${quote(item.title)} (id ${item.id}${origin})\n${news(delivery)}`
   })
   const onlyAnswers = deliveries.every(delivery => delivery.kind === 'answer')
   const heading = !onlyAnswers
@@ -582,5 +647,6 @@ export function toolView(entry: Entry): Record<string, unknown> {
       ? { note: response.phaseNote }
       : {}),
     ...(item.closed === undefined ? {} : { closed: item.closed.reason }),
+    ...(item.captured === true ? { captured: true } : {}),
   }
 }

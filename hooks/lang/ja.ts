@@ -57,6 +57,8 @@ export const ja: Strings = {
   delivered: 'セッションが受け取りました。',
   closed: '完了しました。',
   withdrawn: 'セッションが取り下げました。',
+  answeredInChat: 'チャットで回答済み。',
+  captured: 'チャットから取り込み',
   undo: '回答を取り消す',
   archive: '非表示にする',
   secretWarning: 'パスワードかキーのようです。送信していません。こうした情報は受信箱に入れないでください。',

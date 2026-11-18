@@ -60,6 +60,8 @@ export const de: Strings = {
   delivered: 'Bei der Sitzung angekommen.',
   closed: 'Erledigt.',
   withdrawn: 'Von der Sitzung zurückgezogen.',
+  answeredInChat: 'Im Chat beantwortet.',
+  captured: 'aus dem Chat übernommen',
   undo: 'Antwort zurücknehmen',
   archive: 'Ausblenden',
   secretWarning:

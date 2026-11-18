@@ -63,6 +63,8 @@ export const fr: Strings = {
   delivered: 'Reçu par la session.',
   closed: 'Terminé.',
   withdrawn: 'Retiré par la session.',
+  answeredInChat: 'Répondu dans le chat.',
+  captured: 'repris du chat',
   undo: 'Retirer la réponse',
   archive: 'Masquer',
   secretWarning:
