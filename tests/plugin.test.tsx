@@ -640,6 +640,20 @@ describe('the safety net for questions asked in chat alone', () => {
     await ui.unmount()
   })
 
+  test('an answer from the phone closes it too; another session\'s message does not', DE, async ($, on) => {
+    const w = world(on)
+    await $.session.start({ cwd: '/', surface: 'desktop', isInteractive: true })
+    await endTurn($ as never, ASK)
+    const [name] = w.fs.names(`${DIR}/items`)
+    const id = name?.replace('.json', '') ?? ''
+
+    await $.prompt.submit({ text: 'Done over there.', origin: { kind: 'peer' } } as never)
+    expect(w.fs.json(`${DIR}/items/${id}.json`)).not.toHaveProperty('closed')
+
+    await $.prompt.submit({ text: 'Yes, push it.', origin: { kind: 'bridge' } } as never)
+    expect(w.fs.json(`${DIR}/items/${id}.json`)).toMatchObject({ closed: { reason: 'chat', by: 'S1' } })
+  })
+
   test('it can be switched off', { options: { language: 'de', captureChat: false } }, async ($, on) => {
     const w = world(on)
     await $.session.start({ cwd: '/', surface: 'desktop', isInteractive: true })

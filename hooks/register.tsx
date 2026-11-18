@@ -773,6 +773,13 @@ async function addItem($: $, raw: Record<string, unknown>): Promise<string> {
 
 class InboxError extends Error {}
 
+/**
+ * Where a prompt the owner wrote comes from: their own Enter at the prompt, or
+ * their message over Remote Control from a phone or the web. The desktop app's
+ * prompts carry no origin at all.
+ */
+const OWNER_ORIGINS: ReadonlySet<string> = new Set(['human', 'composer', 'bridge'])
+
 // ---- The safety net: questions asked in chat alone -------------------------
 //
 // A session told to use the inbox still asks in chat now and then. When a turn
@@ -1024,7 +1031,7 @@ export const register: Register = (on, options) => {
     const isOwn = origin?.kind === 'plugin' && origin.name === PLUGIN
     if (isOwn || e.command !== undefined) return next(e)
     // The owner writes in the chat: what was taken from it is answered there.
-    if (origin === undefined || origin.kind === 'human' || origin.kind === 'composer') {
+    if (origin === undefined || OWNER_ORIGINS.has(origin.kind)) {
       await closeCaptured($).catch(() => undefined)
     }
     const due = handOver()
