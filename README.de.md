@@ -38,7 +38,7 @@ Vertippt? Unter „Beantwortet“ kannst du eine Antwort zurücknehmen und neu g
 In einer Claude-Code-Sitzung eingeben:
 
 ```
-/plugin install owner-inbox --marketplace <owner>/<repo>
+/plugin install owner-inbox --marketplace ENFEX-maker/owner-inbox
 ```
 
 Danach haben alle neu gestarteten Sitzungen die Inbox. Mehr dazu in der [englischen Anleitung](README.md#install).

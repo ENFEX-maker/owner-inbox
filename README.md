@@ -36,7 +36,7 @@ Kurzanleitung auf Deutsch: [README.de.md](README.de.md).
 From GitHub, at the prompt of a Claude Code session:
 
 ```
-/plugin install owner-inbox --marketplace <owner>/<repo>
+/plugin install owner-inbox --marketplace ENFEX-maker/owner-inbox
 ```
 
 Answer `y` to add the marketplace and pick the user scope, so every session gets the inbox.
