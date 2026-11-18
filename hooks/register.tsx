@@ -988,18 +988,24 @@ export const register: Register = (on, options) => {
   on('ui.render', { component: 'AbovePrompt' }, async ($, e, next) => {
     if (e.viewport?.isFullscreen !== undefined) mem.docks.set(e.surface, e.viewport.isFullscreen)
     const { entries } = await read($, snapshot)
-    const { open, fresh, progress } = counts(entries)
-    if (open + progress === 0 || e.props.hasSurvey) return next(e)
-    const { Box, Button } = $.ui.resolve(e)
+    const { open, fresh, progress, later } = counts(entries)
+    if (open + progress + later === 0 || e.props.hasSurvey) return next(e)
+    const { Box, Button, Text } = $.ui.resolve(e)
 
+    // What is put off stays in sight at the right edge, apart from what waits.
     return (
-      <Box>
+      <Box flexDirection="row" justifyContent="space-between">
         <Button
           key="open-inbox"
           plain
           label={config.s.band(open, fresh, progress)}
           onPress={() => void openPane($, open)}
         />
+        {later > 0 && (
+          <Button key="open-later" plain onPress={() => void openPane($, open)}>
+            <Text color="suggestion">{config.s.bandLater(later)}</Text>
+          </Button>
+        )}
       </Box>
     )
   })

@@ -12,7 +12,7 @@ English: [README.md](README.md).
   - **Später (⏸):** was du bewusst verschoben hast.
   - **Erledigt (✓):** was du beantwortet hast oder was die Sitzung abgeschlossen hat.
   Bei jedem Eintrag steht, welche Sitzung ihn eingetragen hat und wann.
-- **Die Zeile über dem Eingabefeld**, zum Beispiel „Für dich: 2 offen, 1 neu“. Ein Klick darauf öffnet das Fenster.
+- **Die Zeile über dem Eingabefeld**, zum Beispiel „Für dich: 2 offen, 1 neu“. Rechts am Rand steht farbig, was du verschoben hast, etwa „(⏸ 1 später)“. Ein Klick darauf öffnet das Fenster.
 - Optional eine **Benachrichtigung**, wenn etwas Neues kommt.
 
 ## So antwortest du
@@ -37,7 +37,7 @@ Vertippt? Unter „Erledigt“ kannst du eine Antwort zurücknehmen und neu gebe
 - Passwörter, Schlüssel und Zugangsdaten gehören nicht hinein. Sieht etwas danach aus, wird es nicht angenommen.
 - Antworten gibst nur du: Sitzungen dürfen den Ordner der Inbox nicht selbst beschreiben, damit sich keine Sitzung ihre eigene Freigabe ausstellen kann.
 - Nimmst du eine Antwort zurück oder blendest einen offenen Eintrag aus, erfährt die Sitzung das auch.
-- Die Sprache richtet sich nach deinem System. Fest einstellen geht in den Optionen der Erweiterung (`language`: `de` oder `en`).
+- Die Sprache richtet sich nach deinem System. Es gibt elf Sprachen, darunter Deutsch und Englisch. Fest einstellen geht in den Optionen der Erweiterung (`language`, zum Beispiel `de`).
 - Auf dem Handy (Claude-App mit Remote Control) erscheint das Fenster im Bereich „Mods“. Dort gibt es nur Knöpfe, noch keine Textfelder.
 
 ## Einbauen

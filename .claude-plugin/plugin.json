@@ -10,9 +10,9 @@
     "language": {
       "type": "string",
       "title": "Language",
-      "description": "Language of the inbox pane: auto (follows the system language), de (German) or en (English).",
+      "description": "Language of the inbox pane: auto follows the system language (English where the pane does not speak it), or one of de, en, es, fr, it, ja, ko, nl, pl, pt, zh.",
       "default": "auto",
-      "options": ["auto", "de", "en"]
+      "options": ["auto", "de", "en", "es", "fr", "it", "ja", "ko", "nl", "pl", "pt", "zh"]
     },
     "dataDir": {
       "type": "string",

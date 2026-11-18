@@ -9,7 +9,7 @@ Kurzanleitung auf Deutsch: [README.de.md](README.de.md).
 ## What it does
 
 - **One inbox for all sessions.** Every Claude Code session on your machine writes to the same inbox, so items from parallel sessions show up in one list, grouped by project, each with the session it came from.
-- **Stays visible.** Open items wait in the *For you* pane beside the chat and in a line above the prompt (`For you: 2 open, 1 new`) until you deal with them, however far the chat has scrolled.
+- **Stays visible.** Open items wait in the *For you* pane beside the chat and in a line above the prompt (`For you: 2 open, 1 new` and, at its right edge, `(⏸ 1 later)`) until you deal with them, however far the chat has scrolled.
 - **Sorted the way you work.** The pane has four parts: *Active*, *In progress*, *Later* and *Done*. Mark an item as in progress or put it off for later, with a note to the session if you like; the session is told, and the item stays open until you answer.
 - **Cheap for sessions.** Adding an item is one tool call that returns at once. The session keeps working; it is never blocked waiting for you.
 - **Answers come back by themselves.** When you answer, the session that asked receives your answer as a message within a few seconds. If it is busy, the answer arrives right after its current turn. If the host does not let the plugin wake the session, the answer goes along with the session's next tool result or your next prompt. The session also hears when you start on its item, put it off for later, put it away unanswered or take an answer back.
@@ -24,7 +24,7 @@ Kurzanleitung auf Deutsch: [README.de.md](README.de.md).
   | `task` | Done / Cannot do it, with an optional note |
   | `test` | a test guide: each step marked as expected or not as expected, with a note per step |
 
-- **German or English**, following your system language (or set it).
+- **Eleven languages**, following your system language: English, German, Spanish, French, Italian, Portuguese, Dutch, Polish, Japanese, Chinese (simplified) and Korean. Other system languages get English; the `language` option sets one.
 - **Private by design.** Items are small JSON files in a folder on your machine. Nothing is sent anywhere. Texts that look like keys, tokens or passwords are refused on both sides.
 
 ## Requirements
@@ -93,7 +93,7 @@ Set in the plugin's options (the config menu, or `pluginConfigs` in your Claude 
 
 | Option | Default | Meaning |
 | --- | --- | --- |
-| `language` | `auto` | `auto` follows the system language; `de` or `en` fixes one. |
+| `language` | `auto` | `auto` follows the system language; `de`, `en`, `es`, `fr`, `it`, `ja`, `ko`, `nl`, `pl`, `pt` or `zh` fixes one. |
 | `dataDir` | *(empty)* | The inbox folder. Empty means `.owner-inbox` in your home folder. |
 | `notify` | `true` | A system notification when a session adds an item. |
 | `autoOpen` | `true` | Open the pane by itself where it docks beside the chat. |
@@ -106,6 +106,16 @@ Set in the plugin's options (the config menu, or `pluginConfigs` in your Claude 
 - Texts that look like API keys, tokens, private keys or passwords are refused when a session adds them and held back when you type them as an answer. This is a guard, not a guarantee: never paste secrets.
 - Answers are plain files, so whoever can write the folder could write an answer in your place. The plugin denies Claude's own file tools (Write, Edit) any path in the folder and shell commands that name it, so a session cannot approve its own request. That is a best effort against mistakes, not a security boundary against other programs on your machine.
 - Items are never deleted by the plugin. You can put an item away (*Put away*), and sessions close items they are done with. To clear the inbox, delete files from the folder.
+
+## Languages
+
+Only the pane speaks the owner's language; what sessions read stays English. Every language is one file in `hooks/lang/`. The translations beyond English and German were written without a native speaker's review; corrections are very welcome.
+
+To add a language:
+
+1. Copy `hooks/lang/en.ts` to `hooks/lang/<code>.ts` (the ISO 639-1 code, such as `sv`) and translate every text. Keep the symbols (`▶`, `⏸`, `↺`, `✓`, `✗`, `←`) and the numbers the texts are given.
+2. Add it to `LANGUAGES` in `hooks/i18n.ts` and to the `language` options in `.claude-plugin/plugin.json`.
+3. Run `claude plugin test .`: a test fails while any text is missing or empty in any language.
 
 ## Known limits
 

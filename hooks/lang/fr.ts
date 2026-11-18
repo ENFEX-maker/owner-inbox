@@ -1,0 +1,79 @@
+import type { Strings } from '../i18n'
+
+const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`
+
+export const fr: Strings = {
+  paneTitle: open => (open > 0 ? `Pour vous (${open})` : 'Pour vous'),
+  band: (open, fresh, progress) =>
+    `Pour vous : ${[
+      ...(open > 0 ? [plural(open, 'ouvert', 'ouverts')] : []),
+      ...(fresh > 0 ? [plural(fresh, 'nouveau', 'nouveaux')] : []),
+      ...(progress > 0 ? [`${progress} en cours`] : []),
+    ].join(', ') || 'rien en attente'}`,
+  bandLater: later => `(⏸ ${later} pour plus tard)`,
+  header: (open, fresh) =>
+    open === 0
+      ? 'Actifs : rien en attente'
+      : `Actifs (${open})${fresh > 0 ? ` · ${plural(fresh, 'nouveau', 'nouveaux')}` : ''}`,
+  empty: 'Rien ne vous attend pour le moment.',
+  progressSection: n => `En cours (${n})`,
+  laterSection: n => `Plus tard (${n})`,
+  phaseHeading: 'État',
+  phaseNote: 'Note pour la session (facultatif)',
+  toProgress: '▶ En cours',
+  toLater: '⏸ Plus tard',
+  toActive: '↺ Réactiver',
+  phaseState: (phase, time) => (phase === 'progress' ? `En cours depuis ${time}.` : `Reporté : ${time}.`),
+  yourNote: 'Votre note',
+  type: {
+    question: 'Question',
+    decision: 'Décision',
+    approval: 'Validation',
+    review: 'À regarder',
+    task: 'Tâche',
+    test: 'Test',
+  },
+  fresh: 'nouveau',
+  back: '← Retour',
+  doneSection: n => `Terminé (${n})`,
+  from: label => `de ${label}`,
+  recommended: 'recommandé',
+  ownAnswer: 'Votre propre réponse',
+  note: 'Note (facultatif, envoyée avec votre réponse)',
+  send: 'Envoyer',
+  approve: 'Valider',
+  reject: 'Refuser',
+  done: 'Fait',
+  looked: 'Vu',
+  cannot: 'Impossible',
+  notLooked: 'Pas regardé',
+  pass: '✓ Comme prévu',
+  fail: '✗ Pas comme prévu',
+  stepNote: 'Note sur cette étape (Entrée enregistre)',
+  save: 'Enregistrer',
+  sendResult: (marked, total) => `Envoyer le résultat (${marked} sur ${total} vérifiées)`,
+  sendAnyway: (marked, total) => `Envoyer quand même (${marked} sur ${total} vérifiées)`,
+  unmarked: steps =>
+    steps.length === 1
+      ? `L'étape ${steps[0]} n'a pas encore de résultat. Appuyez encore une fois sur « Envoyer quand même » pour l'envoyer ainsi.`
+      : `Les étapes ${steps.join(', ')} n'ont pas encore de résultat. Appuyez encore une fois sur « Envoyer quand même » pour les envoyer ainsi.`,
+  overallNote: 'Note générale (facultatif)',
+  yourAnswer: 'Votre réponse',
+  waiting: 'Pas encore reçu par la session.',
+  delivered: 'Reçu par la session.',
+  closed: 'Terminé.',
+  withdrawn: 'Retiré par la session.',
+  undo: 'Retirer la réponse',
+  archive: 'Masquer',
+  secretWarning:
+    "Cela ressemble à un mot de passe ou à une clé. Non envoyé : ce genre d'information n'a pas sa place dans la boîte.",
+  needAnswer: "Saisissez d'abord une réponse.",
+  needMark: 'Marquez au moins une étape « Comme prévu » ou « Pas comme prévu ».',
+  expected: 'Attendu',
+  notifyTitle: 'Nouveau pour vous',
+  commandDescription: 'Ouvre la boîte « Pour vous » à côté du chat',
+  commandOpened: 'Boîte ouverte.',
+  noteSaved: '✓ Note enregistrée',
+  months: ['janv.', 'févr.', 'mars', 'avr.', 'mai', 'juin', 'juil.', 'août', 'sept.', 'oct.', 'nov.', 'déc.'],
+  day: (day, month, time) => `${day} ${month} ${time}`,
+}

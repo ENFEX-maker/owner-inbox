@@ -1,13 +1,25 @@
-// The owner's side of the inbox follows the system language (German or
-// English); `language` in the plugin's options fixes one. What the model reads
-// stays English.
+// The owner's side of the inbox speaks the system language when it knows it,
+// English otherwise; `language` in the plugin's options fixes one. What the
+// model reads stays English. Each language is one file under lang/; adding one
+// is described in the README.
 import type { ItemType } from '../types'
-
-export type Language = 'de' | 'en'
+import { de } from './lang/de'
+import { en } from './lang/en'
+import { es } from './lang/es'
+import { fr } from './lang/fr'
+import { it } from './lang/it'
+import { ja } from './lang/ja'
+import { ko } from './lang/ko'
+import { nl } from './lang/nl'
+import { pl } from './lang/pl'
+import { pt } from './lang/pt'
+import { zh } from './lang/zh'
 
 export type Strings = {
   paneTitle: (open: number) => string
   band: (open: number, fresh: number, progress: number) => string
+  /** The count of items put off, shown apart at the band's right edge. */
+  bandLater: (later: number) => string
   header: (open: number, fresh: number) => string
   empty: string
   progressSection: (n: number) => string
@@ -57,165 +69,32 @@ export type Strings = {
   commandDescription: string
   commandOpened: string
   noteSaved: string
+  /** Twelve short month names, January first. */
   months: readonly string[]
+  /** A date not today: day of month, short month name, time "15:30". */
+  day: (day: number, month: string, time: string) => string
 }
 
-const de: Strings = {
-  paneTitle: open => (open > 0 ? `Für dich (${open})` : 'Für dich'),
-  band: (open, fresh, progress) =>
-    `Für dich: ${[
-      ...(open > 0 ? [`${open} offen`] : []),
-      ...(fresh > 0 ? [`${fresh} neu`] : []),
-      ...(progress > 0 ? [`${progress} in Arbeit`] : []),
-    ].join(', ')}`,
-  header: (open, fresh) =>
-    open === 0 ? 'Aktiv: nichts offen' : `Aktiv (${open})${fresh > 0 ? ` · ${fresh} neu` : ''}`,
-  empty: 'Gerade wartet nichts auf dich.',
-  progressSection: n => `In Arbeit (${n})`,
-  laterSection: n => `Später (${n})`,
-  phaseHeading: 'Stand',
-  phaseNote: 'Notiz an die Sitzung (optional)',
-  toProgress: '▶ In Arbeit',
-  toLater: '⏸ Später',
-  toActive: '↺ Wieder aktiv',
-  phaseState: (phase, time) => (phase === 'progress' ? `In Arbeit seit ${time}.` : `Auf später verschoben am ${time}.`),
-  yourNote: 'Deine Notiz',
-  type: {
-    question: 'Frage',
-    decision: 'Entscheidung',
-    approval: 'Freigabe',
-    review: 'Anschauen',
-    task: 'Aufgabe',
-    test: 'Test',
-  },
-  fresh: 'neu',
-  back: '← Zurück',
-  doneSection: n => `Erledigt (${n})`,
-  from: label => `von ${label}`,
-  recommended: 'empfohlen',
-  ownAnswer: 'Eigene Antwort',
-  note: 'Notiz (optional, geht beim Senden mit)',
-  send: 'Senden',
-  approve: 'Freigeben',
-  reject: 'Ablehnen',
-  done: 'Erledigt',
-  looked: 'Angesehen',
-  cannot: 'Geht nicht',
-  notLooked: 'Nicht angesehen',
-  pass: '✓ Wie erwartet',
-  fail: '✗ Nicht wie erwartet',
-  stepNote: 'Notiz zu diesem Schritt (Enter speichert)',
-  save: 'Speichern',
-  sendResult: (marked, total) => `Ergebnis senden (${marked} von ${total} geprüft)`,
-  sendAnyway: (marked, total) => `Trotzdem senden (${marked} von ${total} geprüft)`,
-  unmarked: steps =>
-    steps.length === 1
-      ? `Schritt ${steps[0]} hat noch kein Ergebnis. Drück noch einmal auf „Trotzdem senden“, um so zu senden.`
-      : `Die Schritte ${steps.join(', ')} haben noch kein Ergebnis. Drück noch einmal auf „Trotzdem senden“, um so zu senden.`,
-  overallNote: 'Gesamtnotiz (optional)',
-  yourAnswer: 'Deine Antwort',
-  waiting: 'Bei der Sitzung noch nicht angekommen.',
-  delivered: 'Bei der Sitzung angekommen.',
-  closed: 'Erledigt.',
-  withdrawn: 'Von der Sitzung zurückgezogen.',
-  undo: 'Antwort zurücknehmen',
-  archive: 'Ausblenden',
-  secretWarning:
-    'Das sieht nach einem Passwort oder Schlüssel aus. Nicht gesendet: so etwas gehört nicht in den Posteingang.',
-  needAnswer: 'Bitte erst eine Antwort eintippen.',
-  needMark: 'Bitte mindestens einen Schritt als „Wie erwartet“ oder „Nicht wie erwartet“ markieren.',
-  expected: 'Erwartet',
-  notifyTitle: 'Neu für dich',
-  commandDescription: 'Öffnet den Posteingang „Für dich“ neben dem Chat',
-  commandOpened: 'Posteingang geöffnet.',
-  noteSaved: '✓ Notiz gespeichert',
-  months: ['Jan', 'Feb', 'Mär', 'Apr', 'Mai', 'Jun', 'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Dez'],
-}
+/** Every language the pane speaks, by its ISO 639-1 code. */
+export const LANGUAGES = { de, en, es, fr, it, ja, ko, nl, pl, pt, zh } as const satisfies Record<string, Strings>
 
-const en: Strings = {
-  paneTitle: open => (open > 0 ? `For you (${open})` : 'For you'),
-  band: (open, fresh, progress) =>
-    `For you: ${[
-      ...(open > 0 ? [`${open} open`] : []),
-      ...(fresh > 0 ? [`${fresh} new`] : []),
-      ...(progress > 0 ? [`${progress} in progress`] : []),
-    ].join(', ')}`,
-  header: (open, fresh) =>
-    open === 0 ? 'Active: nothing open' : `Active (${open})${fresh > 0 ? ` · ${fresh} new` : ''}`,
-  empty: 'Nothing is waiting for you.',
-  progressSection: n => `In progress (${n})`,
-  laterSection: n => `Later (${n})`,
-  phaseHeading: 'Status',
-  phaseNote: 'Note to the session (optional)',
-  toProgress: '▶ In progress',
-  toLater: '⏸ Later',
-  toActive: '↺ Active again',
-  phaseState: (phase, time) => (phase === 'progress' ? `In progress since ${time}.` : `Put off for later on ${time}.`),
-  yourNote: 'Your note',
-  type: {
-    question: 'Question',
-    decision: 'Decision',
-    approval: 'Approval',
-    review: 'Look at',
-    task: 'Task',
-    test: 'Test',
-  },
-  fresh: 'new',
-  back: '← Back',
-  doneSection: n => `Done (${n})`,
-  from: label => `from ${label}`,
-  recommended: 'recommended',
-  ownAnswer: 'Your own answer',
-  note: 'Note (optional, sent with your answer)',
-  send: 'Send',
-  approve: 'Approve',
-  reject: 'Reject',
-  done: 'Done',
-  looked: 'Looked at it',
-  cannot: 'Cannot do it',
-  notLooked: 'Did not look',
-  pass: '✓ As expected',
-  fail: '✗ Not as expected',
-  stepNote: 'Note on this step (Enter saves)',
-  save: 'Save',
-  sendResult: (marked, total) => `Send result (${marked} of ${total} checked)`,
-  sendAnyway: (marked, total) => `Send anyway (${marked} of ${total} checked)`,
-  unmarked: steps =>
-    steps.length === 1
-      ? `Step ${steps[0]} has no result yet. Press "Send anyway" again to send it like this.`
-      : `Steps ${steps.join(', ')} have no result yet. Press "Send anyway" again to send them like this.`,
-  overallNote: 'Overall note (optional)',
-  yourAnswer: 'Your answer',
-  waiting: 'Not yet received by the session.',
-  delivered: 'Received by the session.',
-  closed: 'Done.',
-  withdrawn: 'Withdrawn by the session.',
-  undo: 'Take answer back',
-  archive: 'Put away',
-  secretWarning:
-    'That looks like a password or key. Not sent: such things do not belong in the inbox.',
-  needAnswer: 'Type an answer first.',
-  needMark: 'Mark at least one step as expected or not as expected.',
-  expected: 'Expected',
-  notifyTitle: 'New for you',
-  commandDescription: 'Opens the "For you" inbox beside the chat',
-  commandOpened: 'Inbox opened.',
-  noteSaved: '✓ Note saved',
-  months: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
-}
+export type Language = keyof typeof LANGUAGES
+
+const isLanguage = (code: unknown): code is Language =>
+  typeof code === 'string' && Object.hasOwn(LANGUAGES, code)
 
 /**
- * The owner's language: `de` or `en` as set, else (`auto`, the default) the
- * system's, German for a German locale and English for every other.
+ * The owner's language: the one set in the options, else (`auto`, the
+ * default) the system's when the pane speaks it, else English.
  */
 export function strings(language: unknown, locale: string | undefined): Strings {
-  if (language === 'de') return de
-  if (language === 'en') return en
+  if (isLanguage(language)) return LANGUAGES[language]
+  const code = locale?.toLowerCase().split(/[-_]/)[0]
 
-  return locale?.toLowerCase().startsWith('de') === true ? de : en
+  return isLanguage(code) ? LANGUAGES[code] : en
 }
 
-/** "15:30" today, "17. Nov 15:30" (or "Nov 17 15:30") otherwise. */
+/** "15:30" today, else the day in the language's own order, as "17. Nov 15:30". */
 export function formatTime(at: number, now: number, s: Strings): string {
   const d = new Date(at)
   const today = new Date(now)
@@ -225,8 +104,6 @@ export function formatTime(at: number, now: number, s: Strings): string {
     d.getFullYear() === today.getFullYear() &&
     d.getMonth() === today.getMonth() &&
     d.getDate() === today.getDate()
-  if (sameDay) return time
-  const month = s.months[d.getMonth()] ?? ''
 
-  return s === en ? `${month} ${d.getDate()} ${time}` : `${d.getDate()}. ${month} ${time}`
+  return sameDay ? time : s.day(d.getDate(), s.months[d.getMonth()] ?? '', time)
 }

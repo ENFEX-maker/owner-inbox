@@ -510,6 +510,15 @@ describe('in progress, later, done', () => {
     expect(w.prompts.at(-1)).toMatch('The owner put this off for later.')
     expect(w.prompts.at(-1)).toMatch('Note: "erst morgen"')
     expect((await ui.find({ key: 'section-later' }))?.text).toBe('▾ Später (1)')
+    const laterBand = (await $.ui.mount({
+      plugin: 'owner-inbox',
+      component: 'AbovePrompt',
+      props: { hasSurvey: false, isCollapsed: false, isWorking: false },
+      surface: 'desktop',
+    } as never)) as { find: (q: object) => Promise<{ text: string } | undefined>; unmount: () => Promise<void> }
+    expect((await laterBand.find({ key: 'open-inbox' }))?.text).toBe('Für dich: nichts offen')
+    expect((await laterBand.find({ key: 'open-later' }))?.text).toBe('(⏸ 1 später)')
+    await laterBand.unmount()
     expect(JSON.parse(out(await $.tool.call({ tool: 'mcp__owner-inbox__list' })) ?? '[]')).toMatchObject([
       { id, status: 'later', note: 'erst morgen' },
     ])

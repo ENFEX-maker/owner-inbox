@@ -1,0 +1,78 @@
+import type { Strings } from '../i18n'
+
+const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`
+
+export const es: Strings = {
+  paneTitle: open => (open > 0 ? `Para ti (${open})` : 'Para ti'),
+  band: (open, fresh, progress) =>
+    `Para ti: ${[
+      ...(open > 0 ? [plural(open, 'abierto', 'abiertos')] : []),
+      ...(fresh > 0 ? [plural(fresh, 'nuevo', 'nuevos')] : []),
+      ...(progress > 0 ? [`${progress} en curso`] : []),
+    ].join(', ') || 'nada pendiente'}`,
+  bandLater: later => `(⏸ ${later} para más tarde)`,
+  header: (open, fresh) =>
+    open === 0
+      ? 'Activos: nada pendiente'
+      : `Activos (${open})${fresh > 0 ? ` · ${plural(fresh, 'nuevo', 'nuevos')}` : ''}`,
+  empty: 'Ahora no hay nada esperándote.',
+  progressSection: n => `En curso (${n})`,
+  laterSection: n => `Más tarde (${n})`,
+  phaseHeading: 'Estado',
+  phaseNote: 'Nota para la sesión (opcional)',
+  toProgress: '▶ En curso',
+  toLater: '⏸ Más tarde',
+  toActive: '↺ Activar de nuevo',
+  phaseState: (phase, time) => (phase === 'progress' ? `En curso desde ${time}.` : `Aplazado: ${time}.`),
+  yourNote: 'Tu nota',
+  type: {
+    question: 'Pregunta',
+    decision: 'Decisión',
+    approval: 'Aprobación',
+    review: 'Revisar',
+    task: 'Tarea',
+    test: 'Prueba',
+  },
+  fresh: 'nuevo',
+  back: '← Volver',
+  doneSection: n => `Hecho (${n})`,
+  from: label => `de ${label}`,
+  recommended: 'recomendado',
+  ownAnswer: 'Tu propia respuesta',
+  note: 'Nota (opcional, se envía con tu respuesta)',
+  send: 'Enviar',
+  approve: 'Aprobar',
+  reject: 'Rechazar',
+  done: 'Hecho',
+  looked: 'Revisado',
+  cannot: 'No es posible',
+  notLooked: 'No revisado',
+  pass: '✓ Como se esperaba',
+  fail: '✗ No como se esperaba',
+  stepNote: 'Nota sobre este paso (Intro guarda)',
+  save: 'Guardar',
+  sendResult: (marked, total) => `Enviar resultado (${marked} de ${total} comprobados)`,
+  sendAnyway: (marked, total) => `Enviar de todos modos (${marked} de ${total} comprobados)`,
+  unmarked: steps =>
+    steps.length === 1
+      ? `El paso ${steps[0]} aún no tiene resultado. Pulsa «Enviar de todos modos» otra vez para enviarlo así.`
+      : `Los pasos ${steps.join(', ')} aún no tienen resultado. Pulsa «Enviar de todos modos» otra vez para enviarlos así.`,
+  overallNote: 'Nota general (opcional)',
+  yourAnswer: 'Tu respuesta',
+  waiting: 'La sesión aún no lo ha recibido.',
+  delivered: 'La sesión lo ha recibido.',
+  closed: 'Hecho.',
+  withdrawn: 'Retirado por la sesión.',
+  undo: 'Retirar la respuesta',
+  archive: 'Ocultar',
+  secretWarning: 'Parece una contraseña o una clave. No se ha enviado: algo así no debe ir en la bandeja.',
+  needAnswer: 'Escribe primero una respuesta.',
+  needMark: 'Marca al menos un paso como «Como se esperaba» o «No como se esperaba».',
+  expected: 'Esperado',
+  notifyTitle: 'Nuevo para ti',
+  commandDescription: 'Abre la bandeja «Para ti» junto al chat',
+  commandOpened: 'Bandeja abierta.',
+  noteSaved: '✓ Nota guardada',
+  months: ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sept', 'oct', 'nov', 'dic'],
+  day: (day, month, time) => `${day} ${month} ${time}`,
+}
